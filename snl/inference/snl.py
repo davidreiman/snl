@@ -19,15 +19,17 @@ class SequentialNeuralLikelihood:
     A class for likelihood-free inference via Sequential Neural Likelihoods (arxiv.org/abs/1805.07226).
     """
     def __init__(self, simulator, priors, obs_data, model, optimizer,
-                 scaler=None, obs_truth=None, n_rounds=10, mcmc_walkers=5,
-                 mcmc_steps=250, mcmc_discard=50, mcmc_thin=1, n_epochs=20,
-                 valid_fraction=0.05, batch_size=50, grad_clip=5., log_dir='./',
-                 device=None):
+                 scaler=None, obs_truth=None, n_rounds=10, sims_per_model=1,
+                 mcmc_walkers=5, mcmc_steps=250, mcmc_discard=50, mcmc_thin=1,
+                 n_epochs=20, valid_fraction=0.05, batch_size=50, grad_clip=5.,
+                 log_dir='./', device=None):
 
         """
         Parameters
             simulator: callable
-                A wrapper for the simulator, should consume (*, param_dim) arrays
+                A wrapper for the simulator, should consume (*, param_dim)
+                arrays, possess a `sims_per_model` argument, and return
+                a (*, sims_per_model, data_dim) array
             priors: dict
                 Dictionary of priors {name: snl.inference.priors.Prior}
             obs_data: np.ndarray (*, data_dim)
@@ -42,6 +44,8 @@ class SequentialNeuralLikelihood:
                 Batch of observed true params matching obs_data
             n_rounds: int
                 Number of SNL rounds
+            sims_per_model: int
+                Number of simulations to generate per MCMC sample
             mcmc_walkers: int
                 Number of independent MCMC walkers
             mcmc_steps: int
@@ -75,6 +79,7 @@ class SequentialNeuralLikelihood:
         self.scaler = scaler
         self.obs_truth = obs_truth
         self.n_rounds = n_rounds
+        self.sims_per_model = sims_per_model
         self.mcmc_steps = mcmc_steps
         self.mcmc_discard = mcmc_discard
         self.mcmc_thin = mcmc_thin
@@ -119,6 +124,8 @@ class SequentialNeuralLikelihood:
         return train_loader, valid_loader
 
     def train(self):
+        print(f"Training on {self.data['train_data'].shape[0]:,d} samples. "
+              f"Validating on {self.data['valid_data'].shape[0]:,d} samples.")
         train_loader, valid_loader = self.make_loaders()
 
         self.model.train()
@@ -199,7 +206,11 @@ class SequentialNeuralLikelihood:
 
     def simulate(self, params):
         params = params.reshape([-1, self.param_dim])
-        data = self.simulator(params)
+        data = self.simulator(params, sims_per_model=self.sims_per_model)
+        params = params.repeat(self.sims_per_model, axis=0)
+        data = data.reshape([-1, self.data_dim])
+        assert params.shape[0] == data.shape[0]
+
         if self.scaler is not None:
             data = self.scaler.transform(data)
 
@@ -217,8 +228,8 @@ class SequentialNeuralLikelihood:
         self.data['valid_params'] = np.vstack([self.data['valid_params'], params[valid_idx]])
 
     def walker_plot(self, samples):
-        fig, axes = plt.subplots(nrows=self.mcmc_walkers, ncols=self.param_dim,
-                                 figsize=(2*self.mcmc_walkers, 4*self.param_dim),
+        fig, axes = plt.subplots(ncols=self.param_dim, nrows=self.mcmc_walkers,
+                                 figsize=(self.param_dim, self.mcmc_walkers),
                                  squeeze=False, sharex=True)
         for i in range(self.mcmc_walkers):
             for j in range(self.param_dim):
