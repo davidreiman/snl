@@ -198,8 +198,7 @@ class SequentialNeuralLikelihood:
         start_time = time.time()
         progress = 'notebook' if self.notebook else True
         sampler.run_mcmc(p0, self.mcmc_steps, progress=progress)
-        samples = sampler.get_chain(
-            discard=self.mcmc_discard, thin=self.mcmc_thin)
+        samples = sampler.get_chain()    
         t = time.time() - start_time
         print(f"MCMC complete. Time elapsed: {t//60:.0f}m {t%60:.0f}s.")
         return samples
@@ -262,6 +261,9 @@ class SequentialNeuralLikelihood:
             if show_plots:
                 self.walker_plot(samples)
                 self.corner_plot(samples)
+
+            # Discard and thin MCMC samples
+            samples = samples[self.mcmc_discard::self.mcmc_thin]
 
             # Simulate and store data
             self.simulate(samples)
