@@ -29,7 +29,7 @@ class SequentialNeuralLikelihood:
             simulator: callable
                 A wrapper for the simulator, should consume (*, param_dim) arrays
             priors: dict
-                Dictionary of prior distributions
+                Dictionary of priors {name: snl.inference.priors.Prior}
             obs_data: np.ndarray (*, data_dim)
                 Batch of observed data
             model: snl.models.ConditionalFlow
