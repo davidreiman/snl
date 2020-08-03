@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as D
-import nsflow.nn as nn_
-import nsflow.utils as utils
-from nsflow.nde import distributions, flows, transforms
+import nflows.nn as nn_
+import nflows.utils as utils
+from nflows import distributions, flows, transforms
 
 
 class ConditionalFlow(nn.Module):
@@ -45,7 +45,7 @@ class ConditionalFlow(nn.Module):
             base = transforms.PiecewiseRationalQuadraticCouplingTransform(
                 mask=utils.create_mid_split_binary_mask(features=self.dim),
                 transform_net_create_fn=lambda in_features, out_features:
-                    nn_.ResidualNet(
+                    nn_.nets.ResidualNet(
                         in_features=in_features,
                         out_features=out_features,
                         context_features=self.context_dim,
