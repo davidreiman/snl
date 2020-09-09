@@ -2,19 +2,16 @@ import os
 import time
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import emcee
 import corner
 import sklearn
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
-from sklearn.preprocessing import StandardScaler
-from snl.utils import is_notebook
+from sbi.utils import is_notebook
 
 
-class SequentialNeuralLikelihood:
+class SequentialNeuralLikelihoodRatio:
     """
     A class for likelihood-free inference via Sequential Neural Likelihoods (arxiv.org/abs/1805.07226).
     """
