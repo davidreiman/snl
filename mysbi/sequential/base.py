@@ -7,6 +7,8 @@ import numpy as np
 import sklearn
 import os
 from ..utils import is_notebook
+from pyro.infer import MCMC, NUTS, Predictive
+
 
 class Sequential():
     def __init__(self, priors, obs_data, model, optimizer,
@@ -200,54 +202,67 @@ class Sequential():
             log_prob = log_prob + self.model.log_prob(self.x0, params)
         return log_prob
 
+    def hmc(self, num_samples=50):
+        def model_wrapper(param_dict):
+            # TODO: Figure out if there's a way to pass params without dict
+            log_prob = self.log_prior(param_dict['params'])
+            log_prob +=  self.model.log_prob(self.x0, param_dict['params'])
+            return -log_prob
 
-    def _mcmc_log_posterior(self, params, prior_only=False):
-        if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float().to(self.device)
+        initial_params = self.priors.sample((1, ))
+        nuts_kernel = NUTS(potential_fn=model_wrapper, adapt_step_size=True)
+        mcmc = MCMC(nuts_kernel, num_samples=200, warmup_steps=100, initial_params={"params": initial_params})
+        mcmc.run(self.x0)
+        return mcmc.get_samples(num_samples)['params'].view(num_samples, -1)
 
-        log_prob = self.log_prior(params)
-        if not prior_only:
-            params = torch.stack(self.x0.shape[0]*[params])
-            log_prob = log_prob + self.model.log_prob(self.x0, params).item()
-        return log_prob.detach()
+    # def _mcmc_log_posterior(self, params, prior_only=False):
+    #     if type(params) is np.ndarray:
+    #         params = torch.from_numpy(params).float().to(self.device)
+    #
+    #     log_prob = self.log_prior(params)
+    #     if not prior_only:
+    #         params = torch.stack(self.x0.shape[0]*[params])
+    #         log_prob = log_prob + self.model.log_prob(self.x0, params).item()
+    #     return log_prob.detach()
 
-    def mcmc(self, prior_only=False, clean=True):
-        """
-        TODO: Update to pyro? Something better for nns than emcee probably
-
-        :param prior_only:
-        :return:
-        """
-        p0 = self.sample_prior(self.mcmc_walkers)
-        kwargs = {'prior_only': prior_only}
-        sampler = emcee.EnsembleSampler(
-            self.mcmc_walkers, self.param_dim, self._mcmc_log_posterior, kwargs=kwargs)
-        print("Running MCMC.")
-        start_time = time.time()
-        progress = 'notebook' if self.notebook else True
-        sampler.run_mcmc(p0, self.mcmc_steps, progress=progress)
-        samples = sampler.get_chain()
-        t = time.time() - start_time
-        print(f"MCMC complete. Time elapsed: {t//60:.0f}m {t%60:.0f}s.")
-        if clean:
-            return self._clean_mcmc_samples(samples)
-        return torch.from_numpy(samples).float().to(self.device)
-
-    def _clean_mcmc_samples(self, samples):
-        # Discard and thin MCMC samples
-        cleaned_samples = samples[self.mcmc_discard::self.mcmc_thin]
-        # TODO: Clean up numpy types
-        if type(cleaned_samples) is np.ndarray:
-            cleaned_samples = torch.from_numpy(cleaned_samples).float().to(self.device)
-        return cleaned_samples.view(torch.tensor(cleaned_samples.shape[:2]).prod(), -1)
+    # def mcmc(self, prior_only=False, clean=True):
+    #     """
+    #     TODO: Update to pyro? Something better for nns than emcee probably
+    #
+    #     :param prior_only:
+    #     :return:
+    #     """
+    #     p0 = self.sample_prior(self.mcmc_walkers)
+    #     kwargs = {'prior_only': prior_only}
+    #     sampler = emcee.EnsembleSampler(
+    #         self.mcmc_walkers, self.param_dim, self._mcmc_log_posterior, kwargs=kwargs)
+    #     print("Running MCMC.")
+    #     start_time = time.time()
+    #     progress = 'notebook' if self.notebook else True
+    #     sampler.run_mcmc(p0, self.mcmc_steps, progress=progress)
+    #     samples = sampler.get_chain()
+    #     t = time.time() - start_time
+    #     print(f"MCMC complete. Time elapsed: {t//60:.0f}m {t%60:.0f}s.")
+    #     if clean:
+    #         return self._clean_mcmc_samples(samples)
+    #     return torch.from_numpy(samples).float().to(self.device)
+    #
+    # def _clean_mcmc_samples(self, samples):
+    #     # Discard and thin MCMC samples
+    #     cleaned_samples = samples[self.mcmc_discard::self.mcmc_thin]
+    #     # TODO: Clean up numpy types
+    #     if type(cleaned_samples) is np.ndarray:
+    #         cleaned_samples = torch.from_numpy(cleaned_samples).float().to(self.device)
+    #     return cleaned_samples.view(torch.tensor(cleaned_samples.shape[:2]).prod(), -1)
 
     def sample_prior(self, num_samples=1000, prior_only=True):
         if prior_only:
             prior_samples = self.priors.sample((num_samples, ))
         else:  # sample from nde
-            prior_samples = self.mcmc(clean=True)
-            # shuffle to uncorrelate samples
-            prior_samples = prior_samples[torch.randperm(prior_samples.shape[0])][:num_samples]
+            # prior_samples = self.mcmc(clean=True)
+            # # shuffle to uncorrelate samples
+            # prior_samples = prior_samples[torch.randperm(prior_samples.shape[0])][:num_samples]
+            prior_samples = self.hmc(num_samples=num_samples)
 
         if type(prior_samples) is np.ndarray:
             prior_samples = torch.from_numpy(prior_samples).float().to(self.device)
@@ -255,14 +270,15 @@ class Sequential():
         return prior_samples
 
     def sample_posterior(self, num_samples=1000):
-        samples = self.mcmc(prior_only=False)
-        cleaned_samples = self._clean_mcmc_samples(samples)
-        if type(cleaned_samples) is np.ndarray:
-            cleaned_samples = torch.from_numpy(cleaned_samples).float().to(self.device)
-
-        # shuffle to uncorrelate samples
-        prior_samples = cleaned_samples[torch.randperm(cleaned_samples.shape[0])][:num_samples]
-        return cleaned_samples
+        # samples = self.mcmc(prior_only=False)
+        samples = self.hmc(num_samples=num_samples)
+        # cleaned_samples = self._clean_mcmc_samples(samples)
+        # if type(cleaned_samples) is np.ndarray:
+        #     cleaned_samples = torch.from_numpy(cleaned_samples).float().to(self.device)
+        #
+        # # shuffle to uncorrelate samples
+        # cleaned_samples = cleaned_samples[torch.randperm(cleaned_samples.shape[0])][:num_samples]
+        return samples
 
     def run(self, show_plots=True):
         # TODO: think of way to take out simulator from this loop when simulator not included
