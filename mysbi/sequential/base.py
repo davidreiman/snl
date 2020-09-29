@@ -215,10 +215,11 @@ class Sequential():
 
     def hmc(self, num_samples=50, walker_steps=200, burn_in=100):
         def model_wrapper(param_dict):
-            # TODO: Figure out if there's a way to pass params without dict
-            log_prob = self.log_prior(param_dict['params'].to(self.device))
-            log_prob +=  self.model.log_prob(self.x0, param_dict['params'].to(self.device))
-            return -log_prob
+            if param_dict is not None:
+                # TODO: Figure out if there's a way to pass params without dict
+                log_prob = self.log_prior(param_dict['params'].to(self.device))
+                log_prob +=  self.model.log_prob(self.x0, param_dict['params'].to(self.device))
+                return -log_prob
 
         initial_params = self.priors.sample((1, ))
         nuts_kernel = NUTS(potential_fn=model_wrapper, adapt_step_size=True)

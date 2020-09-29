@@ -6,6 +6,7 @@ class NeuralRatioEstimator(NeuralDensityEstimator):
     def __init__(self, model, criterion=torch.nn.BCEWithLogitsLoss()):
         super().__init__()
         self.model = model
+        self.device = next(model.parameters()).device
         self.criterion = criterion
         pass
 
@@ -27,10 +28,10 @@ class NeuralRatioEstimator(NeuralDensityEstimator):
         y_dep_b  = self.log_prob(data_b, context_b).flatten()
         y_idep_b = self.log_prob(data_b, context_a).flatten()
 
-        loss_a = self.criterion(y_dep_a, torch.ones(y_dep_a.shape[0])) + \
-                 self.criterion(y_idep_a, torch.zeros(y_dep_a.shape[0]))
-        loss_b = self.criterion(y_dep_b, torch.ones(y_dep_a.shape[0])) + \
-                 self.criterion(y_idep_b, torch.zeros(y_dep_b.shape[0]))
+        loss_a = self.criterion(y_dep_a, torch.ones(y_dep_a.shape[0]).to(self.device)) + \
+                 self.criterion(y_idep_a, torch.zeros(y_dep_a.shape[0]).to(self.device))
+        loss_b = self.criterion(y_dep_b, torch.ones(y_dep_a.shape[0]).to(self.device)) + \
+                 self.criterion(y_idep_b, torch.zeros(y_dep_b.shape[0]).to(self.device))
 
         loss = loss_a + loss_b
 
