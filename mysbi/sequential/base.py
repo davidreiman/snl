@@ -91,17 +91,18 @@ class Sequential():
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
 
-        self.data = {
-            'train_data': torch.empty([0, self.data_dim]),
-            'train_params': torch.empty([0, self.param_dim]),
-            'valid_data': torch.empty([0, self.data_dim]),
-            'valid_params': torch.empty([0, self.param_dim])}
 
         if device is not None:
             self.device = device
         else:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+        self.data = {
+            'train_data': torch.empty([0, self.data_dim]).to(self.device),
+            'train_params': torch.empty([0, self.param_dim]).to(self.device),
+            'valid_data': torch.empty([0, self.data_dim]).to(self.device),
+            'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
+        
         if self.scaler is not None:
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
@@ -215,8 +216,8 @@ class Sequential():
     def hmc(self, num_samples=50, walker_steps=200, burn_in=100):
         def model_wrapper(param_dict):
             # TODO: Figure out if there's a way to pass params without dict
-            log_prob = self.log_prior(param_dict['params'])
-            log_prob +=  self.model.log_prob(self.x0, param_dict['params'])
+            log_prob = self.log_prior(param_dict['params'].to(self.device))
+            log_prob +=  self.model.log_prob(self.x0, param_dict['params'].to(self.device))
             return -log_prob
 
         initial_params = self.priors.sample((1, ))
