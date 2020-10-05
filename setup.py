@@ -11,10 +11,10 @@ from setuptools import setup, find_packages
 setup_keywords = dict()
 setup_keywords['name'] = 'snl'
 setup_keywords['description'] = 'Sequential Neural Likelihood'
-setup_keywords['author'] = 'David M. Reiman'
-setup_keywords['author_email'] = 'dreiman@ucsc.edu'
+setup_keywords['author'] = 'John Tamanas'
+setup_keywords['author_email'] = 'jtamanas@ucsc.edu'
 setup_keywords['license'] = 'BSD'
-setup_keywords['url'] = 'https://github.com/davidreiman/snl'
+setup_keywords['url'] = 'https://github.com/jtamanas/snl'
 setup_keywords['version'] = '0.0.dev0'
 # Use README.rst as long_description.
 setup_keywords['long_description'] = ''
