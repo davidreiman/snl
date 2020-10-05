@@ -6,7 +6,6 @@ import glob, os
 import pdb
 from setuptools import setup, find_packages
 
-
 # Begin setup
 setup_keywords = dict()
 setup_keywords['name'] = 'snl'
