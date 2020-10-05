@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 
 # Begin setup
 setup_keywords = dict()
-setup_keywords['name'] = 'snl'
+setup_keywords['name'] = 'mysbi'
 setup_keywords['description'] = 'Sequential Neural Likelihood'
 setup_keywords['author'] = 'John Tamanas'
 setup_keywords['author_email'] = 'jtamanas@ucsc.edu'

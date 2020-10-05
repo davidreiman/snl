@@ -26,10 +26,10 @@ class Sequential():
                 arrays, possess a `sims_per_model` argument, and return
                 a (*, sims_per_model, data_dim) array
             priors: dict
-                Dictionary of priors {name: snl.inference.priors.Prior}
+                Dictionary of priors {name: mysbi.inference.priors.Prior}
             obs_data: np.ndarray (*, data_dim)
                 Batch of observed data
-            model: snl.models.ConditionalFlow
+            model: mysbi.models.ConditionalFlow
                 Model which will act as the approximate likelihood
             optimizer: torch.optim.Optimizer
                 Optimizer for model
@@ -87,7 +87,7 @@ class Sequential():
         self.batch_size = batch_size
         self.grad_clip = grad_clip
         self.log_dir = log_dir
-        self.model_path = os.path.join(log_dir, 'snl.pt')
+        self.model_path = os.path.join(log_dir, 'mysbi.pt')
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
 
