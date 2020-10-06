@@ -135,13 +135,17 @@ class Sequential():
         if type(params) is np.ndarray:
             params = torch.from_numpy(params).float().to(self.device)
 
+        print("in simulate()")
         params = params.reshape([-1, self.param_dim])
-        data = self.simulator(params, sims_per_model=self.sims_per_model)
         params = torch.cat(self.sims_per_model*[params])
+
+        data = self.simulator(params, sims_per_model=self.sims_per_model)
+        if type(data) is np.ndarray:
+            data = torch.from_numpy(data)
         data = data.reshape([-1, self.data_dim])
         assert params.shape[0] == data.shape[0], print(params.shape, data.shape)
 
-        return data
+        return data, params
 
     def make_loaders(self):
         train_dset = torch.utils.data.TensorDataset(
@@ -258,7 +262,7 @@ class Sequential():
                 self.make_plots()
 
             # Simulate
-            sims = self.simulate(prior_samples)
+            sims, prior_samples = self.simulate(prior_samples)
             # Store data
             self.add_data(sims, prior_samples)
 

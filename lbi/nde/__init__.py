@@ -1,1 +1,2 @@
 from .ratio_estimator import NeuralRatioEstimator
+from .likelihood_estimator import NeuralLikelihoodEstimator
