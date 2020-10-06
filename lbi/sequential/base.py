@@ -141,6 +141,7 @@ class Sequential():
 
         data = self.simulator(params, sims_per_model=self.sims_per_model)
         if type(data) is np.ndarray:
+            # TODO: Make sure this works with cuda multiprocessing
             data = torch.from_numpy(data)
         data = data.reshape([-1, self.data_dim])
         assert params.shape[0] == data.shape[0], print(params.shape, data.shape)
