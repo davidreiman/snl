@@ -87,7 +87,7 @@ class Sequential():
         self.batch_size = batch_size
         self.grad_clip = grad_clip
         self.log_dir = log_dir
-        self.model_path = os.path.join(log_dir, 'lbi.pt')
+        self.model_path = os.path.join(log_dir, 'model.pt')
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
 
