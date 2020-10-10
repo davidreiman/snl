@@ -1,4 +1,3 @@
-import emcee
 import time
 import torch
 import torch.nn as nn
@@ -6,19 +5,33 @@ from tqdm import tqdm
 import numpy as np
 import sklearn
 import os
-from ..utils import is_notebook
+from ..utils import is_notebook, Logger
 from pyro.infer import MCMC, NUTS, Predictive
 
 
 class Sequential():
-    def __init__(self, priors, obs_data, model, optimizer,
-                 simulator=None, param_names=None,
-                 num_initial_samples=250, num_samples_per_round=250,
-                 scaler=None, obs_truth=None, n_rounds=10, sims_per_model=1,
-                 mcmc_walkers=5, mcmc_steps=250, mcmc_discard=50, mcmc_thin=1,
-                 max_n_epochs=200, valid_fraction=0.15, batch_size=50, grad_clip=5.,
+    def __init__(self,
+                 priors, obs_data, model, optimizer,
+                 simulator=None,
+                 param_names=None,
+                 num_initial_samples=250,
+                 num_samples_per_round=250,
+                 scaler=None,
+                 obs_truth=None,
+                 n_rounds=10,
+                 sims_per_model=1,
+                 mcmc_walkers=5,
+                 mcmc_steps=250,
+                 mcmc_discard=50,
+                 mcmc_thin=1,
+                 max_n_epochs=200,
+                 valid_fraction=0.15,
+                 batch_size=50,
+                 grad_clip=5.,
                  patience=10,
-                 log_dir='./', device=None):
+                 log_dir='./',
+                 logger=Logger(),
+                 device=None):
         """
         Parameters
             simulator: callable
@@ -59,10 +72,12 @@ class Sequential():
                 Value at which to clip the gradient norm during training
             log_dir: str
                 Location to store models and logs
+            logger: ..utils.Logger or tensorboard.SummaryWriter object
+                Should work with both basic Logger and tensorboard.SummaryWriter
+                Saves training and validation losses
             device: torch.device
                 Device to train model on
         """
-
         self.priors = priors
         self.obs_data = obs_data
         self.model = model
@@ -87,6 +102,7 @@ class Sequential():
         self.batch_size = batch_size
         self.grad_clip = grad_clip
         self.log_dir = log_dir
+        self.logger = logger
         self.model_path = os.path.join(log_dir, 'model.pt')
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
@@ -184,6 +200,9 @@ class Sequential():
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
                 global_step += 1
+            train_loss = total_loss / float(1+len(valid_loader))
+            self.logger.add_scalar("Loss/train", train_loss)
+
             # Evaluate
             self.model.eval()
             with torch.no_grad():
@@ -199,6 +218,7 @@ class Sequential():
             else:
                 epochs_without_improvement += 1
             pbar.set_description(f"Validation Loss: {val_loss:.3f}")
+            self.logger.add_scalar("Loss/valid", val_loss)
             self.model.train()
 
             if epochs_without_improvement > self.patience:
