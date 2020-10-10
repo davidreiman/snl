@@ -36,7 +36,6 @@ class Logger:
             pickle.dump(self.tags[tag], open(filename, 'wb'))
 
 
-
 if __name__ == "__main__":
     writer = Logger()
 

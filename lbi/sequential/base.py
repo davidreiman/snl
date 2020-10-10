@@ -201,7 +201,7 @@ class Sequential():
                 self.optimizer.step()
                 global_step += 1
             train_loss = total_loss / float(1+len(valid_loader))
-            self.logger.add_scalar("Loss/train", train_loss)
+            self.logger.add_scalar("Losses/train", train_loss)
 
             # Evaluate
             self.model.eval()
@@ -218,7 +218,7 @@ class Sequential():
             else:
                 epochs_without_improvement += 1
             pbar.set_description(f"Validation Loss: {val_loss:.3f}")
-            self.logger.add_scalar("Loss/valid", val_loss)
+            self.logger.add_scalar("Losses/valid", val_loss)
             self.model.train()
 
             if epochs_without_improvement > self.patience:
