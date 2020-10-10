@@ -9,6 +9,13 @@ class Logger:
         self.log_dir = log_dir
         self.tags = {}
 
+    def _save(self):
+        for tag in self.tags:
+            # adopt tensorboard syntax for grouping tags
+            filename = self.log_dir+f"{tag}.p"
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            pickle.dump(self.tags[tag], open(filename, 'wb'))
+
     def make_new_tag(self, tag):
         assert tag not in self.tags, AttributeError("Tag already exists")
         self.tags[tag] = {"scalars": [], "global_step": [],  "walltime": []}
@@ -25,15 +32,10 @@ class Logger:
         self.tags[tag]['global_step'].append(global_step)
         self.tags[tag]['walltime'].append(walltime)
 
-    def close(self):
         self._save()
 
-    def _save(self):
-        for tag in self.tags:
-            # adopt tensorboard syntax for grouping tags
-            filename = self.log_dir+f"{tag}.p"
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            pickle.dump(self.tags[tag], open(filename, 'wb'))
+    def close(self):
+        self._save()
 
 
 if __name__ == "__main__":
