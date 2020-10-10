@@ -292,6 +292,7 @@ class Sequential():
 
             # Train flow on new + old simulations
             self.train()
+            self.logger.close()
 
             t = time.time() - round_start
             total_t = time.time() - snl_start
