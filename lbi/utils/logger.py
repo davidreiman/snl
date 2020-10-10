@@ -12,7 +12,7 @@ class Logger:
     def _save(self):
         for tag in self.tags:
             # adopt tensorboard syntax for grouping tags
-            filename = self.log_dir+f"{tag}.p"
+            filename = f"{self.log_dir}{tag}.p"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             pickle.dump(self.tags[tag], open(filename, 'wb'))
 

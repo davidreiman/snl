@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 
 class NeuralDensityEstimator(nn.Module, ABC):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super().__init__()
         pass
 
