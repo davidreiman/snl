@@ -109,12 +109,12 @@ class Sequential():
         self.model_path = os.path.join(log_dir, 'model.pt')
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
+        self.device = model.device
 
-
-        if device is not None:
-            self.device = device
-        else:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # if device is not None:
+        #     self.device = device
+        # else:
+        #     self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.data = {
             'train_data': torch.empty([0, self.data_dim]).to(self.device),
@@ -203,7 +203,7 @@ class Sequential():
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
                 global_step += 1
-            train_loss = total_loss / float(1+len(valid_loader))
+            train_loss = total_loss / float(1+len(train_loader))
             self.logger.add_scalar("Losses/train", train_loss)
 
             # Evaluate
