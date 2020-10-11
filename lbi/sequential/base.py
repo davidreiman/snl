@@ -164,7 +164,6 @@ class Sequential():
         if type(params) is np.ndarray:
             params = torch.from_numpy(params).float().to(self.device)
 
-        print("in simulate()")
         params = params.reshape([-1, self.param_dim])
         params = torch.cat(self.sims_per_model*[params])
 
