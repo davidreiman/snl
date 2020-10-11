@@ -5,7 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import sklearn
 import os
-from ..utils import is_notebook, Logger
+from ..utils import is_notebook, Logger, get_gradient_norm
 from pyro.infer import MCMC, NUTS, Predictive
 
 
@@ -16,6 +16,8 @@ class Sequential():
                  param_names=None,
                  num_initial_samples=250,
                  num_samples_per_round=250,
+                 summary_interval=100,
+                 eval_interval=500,
                  scaler=None,
                  obs_truth=None,
                  n_rounds=10,
@@ -52,6 +54,12 @@ class Sequential():
                 Batch of observed true params matching obs_data
             n_rounds: int
                 Number of SNL rounds
+            num_samples_per_round: int
+                Number of samples to generate in each SNL round
+            summary_interval: int
+                Calculate training loss after this many steps
+            eval_interval: int
+                Calculate validation loss after this many steps
             sims_per_model: int
                 Number of simulations to generate per MCMC sample
             mcmc_walkers: int
@@ -91,6 +99,8 @@ class Sequential():
         self.n_rounds = n_rounds
         self.num_initial_samples = num_initial_samples
         self.num_samples_per_round = num_samples_per_round
+        self.summary_interval = summary_interval
+        self.eval_interval = eval_interval
         self.sims_per_model = sims_per_model
         self.mcmc_steps = mcmc_steps
         self.mcmc_discard = mcmc_discard
@@ -203,26 +213,33 @@ class Sequential():
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
                 self.optimizer.step()
                 global_step += 1
-            train_loss = total_loss / float(1+len(train_loader))
-            self.logger.add_scalar("Losses/train", train_loss)
+                # Report training loss
+                if global_step % self.summary_interval == 0:
+                    norm = get_gradient_norm(self.model.model)
+                    train_loss = total_loss / float(self.summary_interval)
+                    self.logger.add_scalar("Losses/train", train_loss, global_step=global_step)
+                    self.logger.add_scalar("Misc/grad_norm", norm, global_step=global_step)
+                    total_loss = 0
 
-            # Evaluate
-            self.model.eval()
-            with torch.no_grad():
-                total_loss = 0
-                for i, (data, params) in enumerate(valid_loader):
-                    loss = self.model._loss(data.to(self.device), params.to(self.device))
-                    total_loss += loss.item()
-            val_loss = total_loss / float(1+len(valid_loader))
-            if val_loss < best_val_loss:
-                with open(self.model_path, 'wb') as f:
-                    torch.save(self.model.state_dict(), f)
-                best_val_loss = val_loss
-            else:
-                epochs_without_improvement += 1
-            pbar.set_description(f"Validation Loss: {val_loss:.3f}")
-            self.logger.add_scalar("Losses/valid", val_loss)
-            self.model.train()
+                # Evaluate and report validation loss
+                if global_step % self.eval_interval == 0:
+                    self.model.eval()
+                    with torch.no_grad():
+                        total_loss = 0
+                        for i, (data, params) in enumerate(valid_loader):
+                            loss = self.model._loss(data.to(self.device), params.to(self.device))
+                            total_loss += loss.item()
+                    val_loss = total_loss / float(1+i)
+                    if val_loss < best_val_loss:
+                        with open(self.model_path, 'wb') as f:
+                            torch.save(self.model.state_dict(), f)
+                        best_val_loss = val_loss
+                    else:
+                        epochs_without_improvement += 1
+                    pbar.set_description(f"Validation Loss: {val_loss:.3f}")
+                    self.logger.add_scalar("Losses/valid", val_loss, global_step=global_step)
+                    total_loss = 0
+                self.model.train()
 
             if epochs_without_improvement > self.patience:
                 print(f"Early stopped after {epoch} epochs")
