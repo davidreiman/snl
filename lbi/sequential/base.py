@@ -136,7 +136,7 @@ class Sequential():
             'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
         
         if self.scaler is not None:
-            with open(f'{self.log_path}scaler_{data_settings["sims_per_model"]}.pkl', 'wb') as f:
+            with open(f'{self.log_path}scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
