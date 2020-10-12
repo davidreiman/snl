@@ -42,7 +42,7 @@ def prep_log_path(log_path='./runs/test_run/', settings_path='./settings'):
     path.mkdir(parents=True, exist_ok=True)
     # copy settings folder into new directory
     # TODO: Clean this up?
-    distutils.dir_util.copy_tree(settings_path, str(path.absolute())+'settings/')
+    distutils.dir_util.copy_tree(settings_path, str(path.absolute())+'/settings/')
     # no need for the entire Path (at least on linux). Might need it for windows?
     return str(path.absolute())
 
