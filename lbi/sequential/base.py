@@ -5,7 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import sklearn
 import os
-from ..utils import is_notebook, Logger, get_gradient_norm
+from ..utils import is_notebook, Logger, get_gradient_norm, prep_log_path
 from pyro.infer import MCMC, NUTS, Predictive
 
 
@@ -31,7 +31,8 @@ class Sequential():
                  batch_size=50,
                  grad_clip=5.,
                  patience=10,
-                 log_dir='./',
+                 log_path='./runs/test_run/',
+                 settings_path='./settings',
                  logger=None,
                  device=None):
         """
@@ -78,8 +79,10 @@ class Sequential():
                 Number of training samples to estimate gradient from
             grad_clip: float
                 Value at which to clip the gradient norm during training
-            log_dir: str
+            log_path: str
                 Location to store models and logs
+            settings_path: str
+                Location to read model and snl settings
             logger: ..utils.Logger or tensorboard.SummaryWriter object
                 Should work with both basic Logger and tensorboard.SummaryWriter
                 Saves training and validation losses
@@ -111,12 +114,12 @@ class Sequential():
         self.valid_fraction = valid_fraction
         self.batch_size = batch_size
         self.grad_clip = grad_clip
-        self.log_dir = log_dir
+        self.log_path = prep_log_path(log_path=log_path, settings_path=settings_path)
         if logger is None:
-            self.logger = Logger(log_dir=log_dir)
+            self.logger = Logger(log_path=log_path)
         else:
             self.logger = logger
-        self.model_path = os.path.join(log_dir, 'model.pt')
+        self.model_path = os.path.join(log_path, 'model.pt')
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
         self.device = model.device

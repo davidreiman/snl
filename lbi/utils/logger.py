@@ -5,14 +5,14 @@ class Logger:
     """
     Simple logger used to save scalars with tensorboard style functions.
     """
-    def __init__(self, log_dir="./"):
-        self.log_dir = log_dir
+    def __init__(self, log_path="./"):
+        self.log_path = log_path
         self.tags = {}
 
     def _save(self):
         for tag in self.tags:
             # adopt tensorboard syntax for grouping tags
-            filename = f"{self.log_dir}{tag}.p"
+            filename = f"{self.log_path}{tag}.p"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             pickle.dump(self.tags[tag], open(filename, 'wb'))
 

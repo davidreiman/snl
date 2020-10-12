@@ -1,6 +1,8 @@
 import os
 import time
 import numpy as np
+import pathlib
+import distutils.dir_util
 
 
 def is_notebook():
@@ -28,4 +30,19 @@ def get_gradient_norm(model):
         param_norm = p.grad.data.norm(2)
         total_norm += param_norm.item() ** 2
     return total_norm ** (0.5)
+
+
+def prep_log_path(log_path='./runs/test_run/', settings_path='./settings'):
+    """
+    return: str
+        Absolute path to log_path
+    """
+    # make nested directory if needed
+    path = pathlib.Path(log_path)
+    path.mkdir(parents=True, exist_ok=True)
+    # copy settings folder into new directory
+    # TODO: Clean this up?
+    distutils.dir_util.copy_tree(settings_path, str(path.absolute())+'settings/')
+    # no need for the entire Path (at least on linux). Might need it for windows?
+    return str(path.absolute())
 
