@@ -16,8 +16,8 @@ class Sequential():
                  param_names=None,
                  num_initial_samples=250,
                  num_samples_per_round=250,
-                 summary_interval=100,
-                 eval_interval=500,
+                 summary_interval=50,
+                 eval_interval=250,
                  scaler=None,
                  obs_truth=None,
                  n_rounds=10,
@@ -28,9 +28,9 @@ class Sequential():
                  mcmc_thin=1,
                  max_n_epochs=200,
                  valid_fraction=0.15,
-                 batch_size=50,
+                 batch_size=256,
                  grad_clip=5.,
-                 patience=10,
+                 patience=20,
                  log_path='./runs/test_run/',
                  settings_path='./settings',
                  logger=None,
@@ -136,7 +136,7 @@ class Sequential():
             'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
         
         if self.scaler is not None:
-            with open(f'{self.log_path}scaler.pkl', 'wb') as f:
+            with open(f'{self.log_path}/scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
