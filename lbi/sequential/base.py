@@ -7,7 +7,7 @@ import sklearn
 import os
 from ..utils import is_notebook, Logger, get_gradient_norm, prep_log_path
 from pyro.infer import MCMC, NUTS, Predictive
-
+import pickle
 
 class Sequential():
     def __init__(self,
@@ -136,6 +136,8 @@ class Sequential():
             'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
         
         if self.scaler is not None:
+            with open(f'{self.log_path}scaler_{data_settings["sims_per_model"]}.pkl', 'wb') as f:
+                pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
             obs_data = torch.from_numpy(obs_data).float().to(self.device)
