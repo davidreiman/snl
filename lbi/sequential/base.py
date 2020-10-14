@@ -5,7 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import sklearn
 import os
-from ..utils import is_notebook, Logger, get_gradient_norm, prep_log_path
+from ..utils import is_notebook, Logger, get_gradient_norm, prep_log_dir
 from pyro.infer import MCMC, NUTS, Predictive
 import pickle
 
@@ -17,7 +17,7 @@ class Sequential():
                  num_initial_samples=250,
                  num_samples_per_round=250,
                  summary_interval=50,
-                 eval_interval=250,
+                 validation_interval=250,
                  scaler=None,
                  obs_truth=None,
                  n_rounds=10,
@@ -31,10 +31,13 @@ class Sequential():
                  batch_size=256,
                  grad_clip=5.,
                  patience=20,
-                 log_path='./runs/test_run/',
+                 log_dir='./runs/test_run/',
                  settings_path='./settings',
                  logger=None,
-                 device=None):
+                 hparam_dict=None,
+                 metric_dict=None,
+                 device=None,
+                 **kwargs):
         """
         Parameters
             simulator: callable
@@ -59,7 +62,7 @@ class Sequential():
                 Number of samples to generate in each SNL round
             summary_interval: int
                 Calculate training loss after this many steps
-            eval_interval: int
+            validation_interval: int
                 Calculate validation loss after this many steps
             sims_per_model: int
                 Number of simulations to generate per MCMC sample
@@ -79,13 +82,17 @@ class Sequential():
                 Number of training samples to estimate gradient from
             grad_clip: float
                 Value at which to clip the gradient norm during training
-            log_path: str
+            log_dir: str
                 Location to store models and logs
             settings_path: str
                 Location to read model and snl settings
-            logger: ..utils.Logger or tensorboard.SummaryWriter object
+            logger: ..utils.Logger or torch.utils.tensorboard.SummaryWriter object
                 Should work with both basic Logger and tensorboard.SummaryWriter
                 Saves training and validation losses
+            hparam_dict: dict
+                dictionary of model hyperparameters to save with logger
+            metric_dict: dict
+                dictionary of metric functions which take Sequential.model as argument and return scalar
             device: torch.device
                 Device to train model on
         """
@@ -103,7 +110,7 @@ class Sequential():
         self.num_initial_samples = num_initial_samples
         self.num_samples_per_round = num_samples_per_round
         self.summary_interval = summary_interval
-        self.eval_interval = eval_interval
+        self.validation_interval = validation_interval
         self.sims_per_model = sims_per_model
         self.mcmc_steps = mcmc_steps
         self.mcmc_discard = mcmc_discard
@@ -114,12 +121,13 @@ class Sequential():
         self.valid_fraction = valid_fraction
         self.batch_size = batch_size
         self.grad_clip = grad_clip
-        self.log_path = prep_log_path(log_path=log_path, settings_path=settings_path)
-        if logger is None:
-            self.logger = Logger(log_path=log_path)
-        else:
-            self.logger = logger
-        self.model_path = os.path.join(log_path, 'model.pt')
+        self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
+        # default to bare-bones logger
+        logger = logger if logger is not None else Logger
+        self.logger = logger(log_dir=log_dir)
+        self.model_path = os.path.join(log_dir, 'model.pt')
+        self.hparam_dict = hparam_dict if hparam_dict is not None else {}
+        self.metric_dict = metric_dict if metric_dict is not None else {}
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
         self.device = model.device
@@ -136,7 +144,7 @@ class Sequential():
             'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
         
         if self.scaler is not None:
-            with open(f'{self.log_path}/scaler.pkl', 'wb') as f:
+            with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
@@ -204,7 +212,6 @@ class Sequential():
         self.model.train()
         global_step = 0
         total_loss = 0
-        best_val_loss = np.inf
         epochs_without_improvement = 0
         # Train
         pbar = tqdm(range(self.max_n_epochs))
@@ -226,7 +233,7 @@ class Sequential():
                     total_loss = 0
 
                 # Evaluate and report validation loss
-                if global_step % self.eval_interval == 0:
+                if global_step % self.validation_interval == 0:
                     self.model.eval()
                     with torch.no_grad():
                         total_loss = 0
@@ -234,10 +241,10 @@ class Sequential():
                             loss = self.model._loss(data.to(self.device), params.to(self.device))
                             total_loss += loss.item()
                     val_loss = total_loss / float(1+i)
-                    if val_loss < best_val_loss:
+                    if val_loss < self.best_val_loss:
                         with open(self.model_path, 'wb') as f:
                             torch.save(self.model.state_dict(), f)
-                        best_val_loss = val_loss
+                        self.best_val_loss = val_loss
                     else:
                         epochs_without_improvement += 1
                     pbar.set_description(f"Validation Loss: {val_loss:.3f}")
@@ -292,6 +299,9 @@ class Sequential():
         return samples
 
     def run(self, show_plots=True):
+        """
+        metric_dict should be a dictionary containing functions which take the snre class as an argument
+        """
         # TODO: think of way to take out simulator from this loop when simulator not included
         snl_start = time.time()
         for r in range(self.n_rounds):
@@ -312,7 +322,15 @@ class Sequential():
             self.add_data(sims, prior_samples)
 
             # Train flow on new + old simulations
-            self.train()
+            try:
+                self.best_val_loss = np.inf
+                self.train()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                for k, f in self.metric_dict.items():
+                    self.metric_dict.update({k: f(self)})
+                self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
             self.logger.close()
 
             t = time.time() - round_start

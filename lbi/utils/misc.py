@@ -32,13 +32,13 @@ def get_gradient_norm(model):
     return total_norm ** (0.5)
 
 
-def prep_log_path(log_path='./runs/test_run/', settings_path='./settings.json'):
+def prep_log_dir(log_dir='./runs/test_run/', settings_path='./settings.json'):
     """
     return: str
-        Absolute path to log_path
+        Absolute path to log_dir
     """
     # make nested directory if needed
-    path = pathlib.Path(log_path)
+    path = pathlib.Path(log_dir)
     path.mkdir(parents=True, exist_ok=True)
     # copy settings folder into new directory
     # TODO: Clean this up?
