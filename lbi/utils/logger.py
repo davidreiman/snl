@@ -1,6 +1,6 @@
 import os
 import pickle
-import time
+
 
 class Logger:
     """
@@ -34,8 +34,6 @@ class Logger:
         """
         Add single entry to dicts
         """
-        if walltime is None:
-            walltime = time.time()
         # get the tag dictionary from the object if it exists. Else return empty template dict
         if tag not in self.tags:
             self.make_new_tag(tag)
