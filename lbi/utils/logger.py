@@ -47,11 +47,15 @@ class Logger:
 
         self._save()
 
-    def add_hparams(self, hparam_dict={}, metric_dict={}):
+    def add_hparams(self, hparam_dict=None, metric_dict=None):
         """
         Add single entry to dicts
         """
         # get the tag dictionary from the object if it exists. Else return empty template dict
+        if metric_dict is None:
+            metric_dict = {}
+        if hparam_dict is None:
+            hparam_dict = {}
         self.hparams = {"hparams": hparam_dict, "metrics": metric_dict}
 
         self._save()

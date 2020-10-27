@@ -123,8 +123,7 @@ class Sequential():
         self.grad_clip = grad_clip
         self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
         # default to bare-bones logger
-        logger = logger if logger is not None else Logger
-        self.logger = logger(log_dir=log_dir)
+        self.logger = logger if logger is not None else Logger(log_dir=log_dir)
         self.model_path = os.path.join(log_dir, 'model.pt')
         self.hparam_dict = hparam_dict if hparam_dict is not None else {}
         self.metric_dict = metric_dict if metric_dict is not None else {}
@@ -331,6 +330,10 @@ class Sequential():
                 for k, f in self.metric_dict.items():
                     self.metric_dict.update({k: f(self)})
                 self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
+            if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
+                print("file path", f"{self.log_dir}/model.pt")
+                self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
+                self.logger.log_asset(f"{self.log_dir}/scaler.pkl", file_name='scaler.pkl')
             self.logger.close()
 
             t = time.time() - round_start
