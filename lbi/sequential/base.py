@@ -133,10 +133,6 @@ class Sequential():
         self.notebook = is_notebook()
         self.device = model.device
 
-        # if device is not None:
-        #     self.device = device
-        # else:
-        #     self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.data = {
             'train_data': torch.empty([0, self.data_dim]),
@@ -158,7 +154,6 @@ class Sequential():
             data = self.scaler.transform(data)
             data = torch.from_numpy(data).float()
 
-        data
 
         # Select samples for validation
         n = data.shape[0]
