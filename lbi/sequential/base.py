@@ -9,6 +9,7 @@ from ..utils import is_notebook, Logger, get_gradient_norm, prep_log_dir
 from pyro.infer import MCMC, NUTS, Predictive
 import pickle
 
+
 class Sequential():
     def __init__(self,
                  priors, obs_data, model, optimizer,
@@ -94,7 +95,7 @@ class Sequential():
             metric_dict: dict
                 dictionary of metric functions which take Sequential.model as argument and return scalar
             device: torch.device
-                Device to train model on. Set by model
+                Device to train model on. Default to model.device
         """
         self.priors = priors
         self.obs_data = obs_data
@@ -132,27 +133,26 @@ class Sequential():
         self.notebook = is_notebook()
         self.device = model.device
 
-
         self.data = {
-            'train_data': torch.empty([0, self.data_dim]),
-            'train_params': torch.empty([0, self.param_dim]),
-            'valid_data': torch.empty([0, self.data_dim]),
-            'valid_params': torch.empty([0, self.param_dim])}
-        
+            'train_data': torch.empty([0, self.data_dim]).to(self.device),
+            'train_params': torch.empty([0, self.param_dim]).to(self.device),
+            'valid_data': torch.empty([0, self.data_dim]).to(self.device),
+            'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
+
         if self.scaler is not None:
             with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
-            obs_data = torch.from_numpy(obs_data).float()
+            obs_data = torch.from_numpy(obs_data).float().to(self.device)
         self.x0 = obs_data
 
     def add_data(self, data, params):
         if self.scaler is not None:
             data = data.cpu().numpy()
             data = self.scaler.transform(data)
-            data = torch.from_numpy(data).float()
-
+            data = torch.from_numpy(data).float().to(self.device)
+        data.to(self.device)
 
         # Select samples for validation
         n = data.shape[0]
@@ -170,10 +170,10 @@ class Sequential():
     def simulate(self, params):
         # TODO: Clean up numpy types
         if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float()
+            params = torch.from_numpy(params).float().to(self.device)
 
         params = params.reshape([-1, self.param_dim])
-        params = torch.cat(self.sims_per_model*[params])
+        params = torch.cat(self.sims_per_model * [params])
 
         data = self.simulator(params, sims_per_model=self.sims_per_model)
         if type(data) is np.ndarray:
@@ -212,10 +212,8 @@ class Sequential():
         pbar = tqdm(range(self.max_n_epochs))
         for epoch in pbar:
             for data, params in train_loader:
-                data = data.to(self.device)
-                params = params.to(self.device)
                 self.optimizer.zero_grad()
-                loss = self.model._loss(data, params)
+                loss = self.model._loss(data.to(self.device), params.to(self.device))
                 loss.backward()
                 total_loss += loss.item()
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
@@ -235,11 +233,9 @@ class Sequential():
                     with torch.no_grad():
                         total_loss = 0
                         for i, (data, params) in enumerate(valid_loader):
-                            data = data.to(self.device)
-                            params = params.to(self.device)
-                            loss = self.model._loss(data, params)
+                            loss = self.model._loss(data.to(self.device), params.to(self.device))
                             total_loss += loss.item()
-                    val_loss = total_loss / float(1+i)
+                    val_loss = total_loss / float(1 + i)
                     if val_loss < self.best_val_loss:
                         with open(self.model_path, 'wb') as f:
                             torch.save(self.model.state_dict(), f)
@@ -260,11 +256,11 @@ class Sequential():
 
     def log_posterior(self, params, prior_only=False):
         if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float()
+            params = torch.from_numpy(params).float().to(self.device)
 
-        log_prob = self.log_prior(params.to(self.device))
+        log_prob = self.log_prior(params)
         if not prior_only:
-            params = torch.stack(self.x0.shape[0]*[params])
+            params = torch.stack(self.x0.shape[0] * [params])
             log_prob = log_prob + self.model.log_prob(self.x0, params)
         return log_prob
 
@@ -276,20 +272,21 @@ class Sequential():
                 log_prob += self.model.log_prob(self.x0, param_dict['params'].to(self.device))
                 return -log_prob
 
-        initial_params = self.priors.sample((1, ))
+        initial_params = self.priors.sample((1,))
         nuts_kernel = NUTS(potential_fn=model_wrapper, adapt_step_size=True)
-        mcmc = MCMC(nuts_kernel, num_samples=walker_steps, warmup_steps=burn_in, initial_params={"params": initial_params})
+        mcmc = MCMC(nuts_kernel, num_samples=walker_steps, warmup_steps=burn_in,
+                    initial_params={"params": initial_params})
         mcmc.run(self.x0)
         return mcmc.get_samples(num_samples)['params'].view(num_samples, -1)
 
     def sample_prior(self, num_samples=1000, prior_only=True):
         if prior_only:
-            prior_samples = self.priors.sample((num_samples, ))
+            prior_samples = self.priors.sample((num_samples,))
         else:  # sample from nde
             prior_samples = self.hmc(num_samples=num_samples)
 
         if type(prior_samples) is np.ndarray:
-            prior_samples = torch.from_numpy(prior_samples).float()
+            prior_samples = torch.from_numpy(prior_samples).float().to(self.device)
 
         return prior_samples
 
@@ -338,8 +335,8 @@ class Sequential():
 
             t = time.time() - round_start
             total_t = time.time() - snl_start
-            print(f"Round {r+1} complete. Time elapsed: {t//60:.0f}m {t%60:.0f}s. "
-                  f"Total time elapsed: {total_t//60:.0f}m {total_t%60:.0f}s.")
+            print(f"Round {r + 1} complete. Time elapsed: {t // 60:.0f}m {t % 60:.0f}s. "
+                  f"Total time elapsed: {total_t // 60:.0f}m {total_t % 60:.0f}s.")
             print("===============================================================")
 
     def make_plots(self):
