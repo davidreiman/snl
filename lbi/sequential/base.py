@@ -29,6 +29,7 @@ class Sequential():
                  max_n_epochs=200,
                  valid_fraction=0.15,
                  batch_size=256,
+                 num_workers=0,
                  grad_clip=5.,
                  patience=20,
                  log_dir='./runs/test_run/',
@@ -120,6 +121,7 @@ class Sequential():
         self.patience = patience
         self.valid_fraction = valid_fraction
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self.grad_clip = grad_clip
         self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
         # default to bare-bones logger
@@ -193,13 +195,13 @@ class Sequential():
             self.data['train_data'].float(),
             self.data['train_params'].float())
         train_loader = torch.utils.data.DataLoader(
-            train_dset, batch_size=self.batch_size, shuffle=True, drop_last=True)
+            train_dset, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=self.num_workers)
 
         valid_dset = torch.utils.data.TensorDataset(
             self.data['valid_data'].float(),
             self.data['valid_params'].float())
         valid_loader = torch.utils.data.DataLoader(
-            valid_dset, batch_size=self.batch_size, shuffle=False, drop_last=True)
+            valid_dset, batch_size=self.batch_size, shuffle=False, drop_last=True, num_workers=self.num_workers)
 
         return train_loader, valid_loader
 
