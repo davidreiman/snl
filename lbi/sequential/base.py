@@ -37,7 +37,6 @@ class Sequential():
                  logger=None,
                  hparam_dict=None,
                  metric_dict=None,
-                 device=None,
                  **kwargs):
         """
         Parameters
@@ -95,7 +94,7 @@ class Sequential():
             metric_dict: dict
                 dictionary of metric functions which take Sequential.model as argument and return scalar
             device: torch.device
-                Device to train model on
+                Device to train model on. Set by model
         """
         self.priors = priors
         self.obs_data = obs_data
@@ -133,10 +132,6 @@ class Sequential():
         self.notebook = is_notebook()
         self.device = model.device
 
-        # if device is not None:
-        #     self.device = device
-        # else:
-        #     self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.data = {
             'train_data': torch.empty([0, self.data_dim]).to(self.device),
