@@ -95,7 +95,7 @@ class Sequential():
             metric_dict: dict
                 dictionary of metric functions which take Sequential.model as argument and return scalar
             device: torch.device
-                Device to train model on. Default to model.device
+                Device to train model on. Default to model.device.
         """
         self.priors = priors
         self.obs_data = obs_data
