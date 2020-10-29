@@ -134,26 +134,25 @@ class Sequential():
 
 
         self.data = {
-            'train_data': torch.empty([0, self.data_dim]).to(self.device),
-            'train_params': torch.empty([0, self.param_dim]).to(self.device),
-            'valid_data': torch.empty([0, self.data_dim]).to(self.device),
-            'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
+            'train_data': torch.empty([0, self.data_dim]),
+            'train_params': torch.empty([0, self.param_dim]),
+            'valid_data': torch.empty([0, self.data_dim]),
+            'valid_params': torch.empty([0, self.param_dim])}
         
         if self.scaler is not None:
             with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
-            obs_data = torch.from_numpy(obs_data).float().to(self.device)
+            obs_data = torch.from_numpy(obs_data).float()
         self.x0 = obs_data
 
     def add_data(self, data, params):
         if self.scaler is not None:
             data = data.cpu().numpy()
             data = self.scaler.transform(data)
-            data = torch.from_numpy(data).float().to(self.device)
+            data = torch.from_numpy(data).float()
 
-        data.to(self.device)
 
         # Select samples for validation
         n = data.shape[0]
@@ -171,7 +170,7 @@ class Sequential():
     def simulate(self, params):
         # TODO: Clean up numpy types
         if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float().to(self.device)
+            params = torch.from_numpy(params).float()
 
         params = params.reshape([-1, self.param_dim])
         params = torch.cat(self.sims_per_model*[params])
@@ -213,8 +212,10 @@ class Sequential():
         pbar = tqdm(range(self.max_n_epochs))
         for epoch in pbar:
             for data, params in train_loader:
+                data = data.to(self.device)
+                params = params.to(self.device)
                 self.optimizer.zero_grad()
-                loss = self.model._loss(data.to(self.device), params.to(self.device))
+                loss = self.model._loss(data, params)
                 loss.backward()
                 total_loss += loss.item()
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
@@ -234,7 +235,9 @@ class Sequential():
                     with torch.no_grad():
                         total_loss = 0
                         for i, (data, params) in enumerate(valid_loader):
-                            loss = self.model._loss(data.to(self.device), params.to(self.device))
+                            data = data.to(self.device)
+                            params = params.to(self.device)
+                            loss = self.model._loss(data, params)
                             total_loss += loss.item()
                     val_loss = total_loss / float(1+i)
                     if val_loss < self.best_val_loss:
@@ -257,9 +260,9 @@ class Sequential():
 
     def log_posterior(self, params, prior_only=False):
         if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float().to(self.device)
+            params = torch.from_numpy(params).float()
 
-        log_prob = self.log_prior(params)
+        log_prob = self.log_prior(params.to(self.device))
         if not prior_only:
             params = torch.stack(self.x0.shape[0]*[params])
             log_prob = log_prob + self.model.log_prob(self.x0, params)
@@ -270,7 +273,7 @@ class Sequential():
             if param_dict is not None:
                 # TODO: Figure out if there's a way to pass params without dict
                 log_prob = self.log_prior(param_dict['params'].to(self.device))
-                log_prob +=  self.model.log_prob(self.x0, param_dict['params'].to(self.device))
+                log_prob += self.model.log_prob(self.x0, param_dict['params'].to(self.device))
                 return -log_prob
 
         initial_params = self.priors.sample((1, ))
@@ -286,7 +289,7 @@ class Sequential():
             prior_samples = self.hmc(num_samples=num_samples)
 
         if type(prior_samples) is np.ndarray:
-            prior_samples = torch.from_numpy(prior_samples).float().to(self.device)
+            prior_samples = torch.from_numpy(prior_samples).float()
 
         return prior_samples
 
