@@ -327,17 +327,17 @@ class Sequential():
                 for k, f in self.metric_dict.items():
                     self.metric_dict.update({k: f(self)})
                 self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
-            if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
-                print("file path", f"{self.log_dir}/model.pt")
-                self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
-                self.logger.log_asset(f"{self.log_dir}/scaler.pkl", file_name='scaler.pkl')
-            self.logger.close()
+        if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
+            print("file path", f"{self.log_dir}/model.pt")
+            self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
+            self.logger.log_asset(f"{self.log_dir}/scaler.pkl", file_name='scaler.pkl')
+        self.logger.close()
 
-            t = time.time() - round_start
-            total_t = time.time() - snl_start
-            print(f"Round {r + 1} complete. Time elapsed: {t // 60:.0f}m {t % 60:.0f}s. "
-                  f"Total time elapsed: {total_t // 60:.0f}m {total_t % 60:.0f}s.")
-            print("===============================================================")
+        t = time.time() - round_start
+        total_t = time.time() - snl_start
+        print(f"Round {r + 1} complete. Time elapsed: {t // 60:.0f}m {t % 60:.0f}s. "
+              f"Total time elapsed: {total_t // 60:.0f}m {total_t % 60:.0f}s.")
+        print("===============================================================")
 
     def make_plots(self):
         pass
