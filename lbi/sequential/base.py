@@ -327,6 +327,12 @@ class Sequential():
             except KeyboardInterrupt:
                 pass
 
+            t = time.time() - round_start
+            total_t = time.time() - snl_start
+            print(f"Round {r + 1} complete. Time elapsed: {t // 60:.0f}m {t % 60:.0f}s. "
+                  f"Total time elapsed: {total_t // 60:.0f}m {total_t % 60:.0f}s.")
+            print("===============================================================")
+
         for k, f in self.metric_dict.items():
             if callable(f):  # if f is a function
                 self.metric_dict.update({k: f(self)})
@@ -336,12 +342,6 @@ class Sequential():
             self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
             self.logger.log_asset(f"{self.log_dir}/scaler.pkl", file_name='scaler.pkl')
         self.logger.close()
-
-        t = time.time() - round_start
-        total_t = time.time() - snl_start
-        print(f"Round {r + 1} complete. Time elapsed: {t // 60:.0f}m {t % 60:.0f}s. "
-              f"Total time elapsed: {total_t // 60:.0f}m {total_t % 60:.0f}s.")
-        print("===============================================================")
 
     def make_plots(self):
         pass
