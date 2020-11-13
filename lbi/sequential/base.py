@@ -324,10 +324,10 @@ class Sequential():
                 global_step = self.train(global_step=global_step)
             except KeyboardInterrupt:
                 pass
-            finally:
-                for k, f in self.metric_dict.items():
-                    self.metric_dict.update({k: f(self)})
-                self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
+
+        for k, f in self.metric_dict.items():
+            self.metric_dict.update({k: f(self)})
+        self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
         if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
             print("file path", f"{self.log_dir}/model.pt")
             self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
