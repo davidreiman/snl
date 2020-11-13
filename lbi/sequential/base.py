@@ -326,6 +326,7 @@ class Sequential():
                 pass
 
         for k, f in self.metric_dict.items():
+            print(metric_dict)
             self.metric_dict.update({k: f(self)})
         self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
         if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
