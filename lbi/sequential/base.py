@@ -38,6 +38,7 @@ class Sequential():
                  logger=None,
                  hparam_dict=None,
                  metric_dict=None,
+                 progress=False,
                  **kwargs):
         """
         Parameters
@@ -130,6 +131,7 @@ class Sequential():
         self.model_path = os.path.join(log_dir, 'model.pt')
         self.hparam_dict = hparam_dict if hparam_dict is not None else {}
         self.metric_dict = metric_dict if metric_dict is not None else {}
+        self.progress = progress
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
         self.device = model.device
@@ -209,7 +211,10 @@ class Sequential():
         total_loss = 0
         epochs_without_improvement = 0
         # Train
-        pbar = tqdm(range(self.max_n_epochs))
+        if self.progress:
+            pbar = tqdm(range(self.max_n_epochs))
+        else:
+            pbar = range(self.max_n_epochs)
         for epoch in pbar:
             for data, params in train_loader:
                 self.optimizer.zero_grad()
@@ -242,7 +247,8 @@ class Sequential():
                         self.best_val_loss = val_loss
                     else:
                         epochs_without_improvement += 1
-                    pbar.set_description(f"Validation Loss: {val_loss:.3f}")
+                    if self.progress:
+                        pbar.set_description(f"Validation Loss: {val_loss:.3f}")
                     self.logger.add_scalar("Losses/valid", val_loss, global_step=global_step)
                     total_loss = 0
                 self.model.train()
