@@ -249,6 +249,7 @@ class Sequential():
             if epochs_without_improvement > self.patience:
                 print(f"Early stopped after {epoch} epochs")
                 break
+        return global_step
 
     def log_prior(self, params):
         return self.priors.log_prob(params)
