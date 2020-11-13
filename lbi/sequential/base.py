@@ -100,6 +100,7 @@ class Sequential():
         self.priors = priors
         self.obs_data = obs_data
         self.model = model
+        self.model.eval()  # the only time model should be in .train() is during training
         self.optimizer = optimizer
         self.simulator = simulator
         self.param_dim = priors.mean.shape[0]
@@ -249,6 +250,7 @@ class Sequential():
             if epochs_without_improvement > self.patience:
                 print(f"Early stopped after {epoch} epochs")
                 break
+        self.model.eval()
         return global_step
 
     def log_prior(self, params):
@@ -326,8 +328,8 @@ class Sequential():
                 pass
 
         for k, f in self.metric_dict.items():
-            print(metric_dict)
-            self.metric_dict.update({k: f(self)})
+            if callable(f):  # if f is a function
+                self.metric_dict.update({k: f(self)})
         self.logger.add_hparams(hparam_dict=self.hparam_dict, metric_dict=self.metric_dict)
         if hasattr(self.logger, "log_asset"):  # comet.ml experiment tracker
             print("file path", f"{self.log_dir}/model.pt")
