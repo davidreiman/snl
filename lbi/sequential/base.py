@@ -199,13 +199,12 @@ class Sequential():
 
         return train_loader, valid_loader
 
-    def train(self):
+    def train(self, global_step=0):
         print(f"Training on {self.data['train_data'].shape[0]:,d} samples. "
               f"Validating on {self.data['valid_data'].shape[0]:,d} samples.")
         train_loader, valid_loader = self.make_loaders()
 
         self.model.train()
-        global_step = 0
         total_loss = 0
         epochs_without_improvement = 0
         # Train
@@ -300,6 +299,7 @@ class Sequential():
         """
         # TODO: think of way to take out simulator from this loop when simulator not included
         snl_start = time.time()
+        global_step = 0
         for r in range(self.n_rounds):
             round_start = time.time()
             # sample from nde after first round
@@ -320,7 +320,7 @@ class Sequential():
             # Train flow on new + old simulations
             try:
                 self.best_val_loss = np.inf
-                self.train()
+                global_step = self.train(global_step=global_step)
             except KeyboardInterrupt:
                 pass
             finally:
