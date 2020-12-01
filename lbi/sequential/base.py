@@ -302,6 +302,31 @@ class Sequential():
         samples = self.hmc(num_samples=num_samples, walker_steps=walker_steps, burn_in=burn_in)
         return samples
 
+    def train_round(self, global_step, show_plots=True):
+        # sample from nde after first round
+        if global_step == 0:
+            prior_samples = self.sample_prior(num_samples=self.num_initial_samples,
+                                              prior_only=True)
+        else:
+            prior_samples = self.sample_prior(num_samples=self.num_samples_per_round,
+                                              prior_only=False)
+        if show_plots:
+            self.make_plots()
+
+        # Simulate
+        sims, prior_samples = self.simulate(prior_samples)
+        # Store data
+        self.add_data(sims, prior_samples)
+
+        # Train flow on new + old simulations
+        try:
+            self.best_val_loss = np.inf
+            global_step = self.train(global_step=global_step)
+        except KeyboardInterrupt:
+            pass
+
+        return global_step
+
     def run(self, show_plots=True):
         """
         metric_dict should be a dictionary containing functions which take the snre class as an argument
@@ -311,27 +336,8 @@ class Sequential():
         global_step = 0
         for r in range(self.n_rounds):
             round_start = time.time()
-            # sample from nde after first round
-            if r == 0:
-                prior_samples = self.sample_prior(num_samples=self.num_initial_samples,
-                                                  prior_only=True)
-            else:
-                prior_samples = self.sample_prior(num_samples=self.num_samples_per_round,
-                                                  prior_only=False)
-            if show_plots:
-                self.make_plots()
 
-            # Simulate
-            sims, prior_samples = self.simulate(prior_samples)
-            # Store data
-            self.add_data(sims, prior_samples)
-
-            # Train flow on new + old simulations
-            try:
-                self.best_val_loss = np.inf
-                global_step = self.train(global_step=global_step)
-            except KeyboardInterrupt:
-                pass
+            global_step = self.train_round(global_step)
 
             t = time.time() - round_start
             total_t = time.time() - snl_start
