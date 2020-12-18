@@ -314,9 +314,9 @@ class Sequential():
             self.make_plots()
 
         # Simulate
-        sims, context = self.simulate(prior_samples)
+        sims, prior_samples = self.simulate(prior_samples)
         # Store data
-        self.add_data(sims, context)
+        self.add_data(sims, prior_samples)
 
         # Train flow on new + old simulations
         try:
