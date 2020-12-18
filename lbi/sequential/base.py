@@ -12,10 +12,9 @@ import pickle
 
 class Sequential():
     def __init__(self,
-                 priors, obs_data, model, optimizer,
+                 priors, obs_data, param_dim, model, optimizer,
                  simulator=None,
                  param_names=None,
-                 param_dim=None,
                  num_initial_samples=250,
                  num_samples_per_round=250,
                  summary_interval=50,
@@ -101,13 +100,11 @@ class Sequential():
         """
         self.priors = priors
         self.obs_data = obs_data
+        self.param_dim = param_dim
         self.model = model
         self.model.eval()  # the only time model should be in .train() is during training
         self.optimizer = optimizer
         self.simulator = simulator
-        if param_dim is None:
-            param_dim = priors.mean.shape[0]
-        self.param_dim = param_dim
         self.param_names = param_names
         self.data_dim = obs_data.shape[1]
         self.scaler = scaler
