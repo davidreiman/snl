@@ -202,6 +202,9 @@ class Sequential():
 
         return train_loader, valid_loader
 
+    def loss_func(self, data, params):
+        return self.model._loss(data.to(self.device), params.to(self.device))
+
     def train(self, global_step=0):
         print(f"Training on {self.data['train_data'].shape[0]:,d} samples. "
               f"Validating on {self.data['valid_data'].shape[0]:,d} samples.")
@@ -218,7 +221,7 @@ class Sequential():
         for epoch in pbar:
             for data, params in train_loader:
                 self.optimizer.zero_grad()
-                loss = self.model._loss(data.to(self.device), params.to(self.device))
+                loss = self.loss_func(data.to(self.device), params.to(self.device))
                 loss.backward()
                 total_loss += loss.item()
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
