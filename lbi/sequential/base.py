@@ -34,10 +34,11 @@ class Sequential():
                  grad_clip=5.,
                  patience=20,
                  log_dir='./runs/test_run/',
-                 settings_path='./settings',
+                 settings_path=None,
                  logger=None,
                  hparam_dict=None,
                  metric_dict=None,
+                 scalar_funcs=None,
                  progress=False,
                  **kwargs):
         """
@@ -94,7 +95,11 @@ class Sequential():
             hparam_dict: dict
                 dictionary of model hyperparameters to save with logger
             metric_dict: dict
-                dictionary of metric functions which take Sequential.model as argument and return scalar
+                dictionary of metric functions evaluated at the end of training
+                which take Sequential.model as argument and return scalar
+            scalar_funcs: dict
+                dictionary of metric functions evaluated every summary interval
+                which take Sequential as argument and return scalars
             device: torch.device
                 Device to train model on. Default to model.device.
         """
@@ -125,12 +130,16 @@ class Sequential():
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.grad_clip = grad_clip
-        self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
+        if settings_path is None:
+            self.log_dir = None
+        else:
+            self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
         # default to bare-bones logger
         self.logger = logger if logger is not None else Logger(log_dir=log_dir)
         self.model_path = os.path.join(log_dir, 'model.pt')
         self.hparam_dict = hparam_dict if hparam_dict is not None else {}
         self.metric_dict = metric_dict if metric_dict is not None else {}
+        self.scalar_funcs = scalar_funcs if scalar_funcs is not None else {"Misc/grad_norm": lambda x: get_gradient_norm(x.model.model)}
         self.progress = progress
         self.best_val_loss = np.inf
         self.notebook = is_notebook()
@@ -206,6 +215,7 @@ class Sequential():
         return self.model._loss(data.to(self.device), params.to(self.device))
 
     def train(self, global_step=0):
+
         print(f"Training on {self.data['train_data'].shape[0]:,d} samples. "
               f"Validating on {self.data['valid_data'].shape[0]:,d} samples.")
         train_loader, valid_loader = self.make_loaders()
@@ -229,10 +239,10 @@ class Sequential():
                 global_step += 1
                 # Report training loss
                 if global_step % self.summary_interval == 0:
-                    norm = get_gradient_norm(self.model.model)
                     train_loss = total_loss / float(self.summary_interval)
                     self.logger.add_scalar("Losses/train", train_loss, global_step=global_step)
-                    self.logger.add_scalar("Misc/grad_norm", norm, global_step=global_step)
+                    for label, func in self.scalar_funcs.items():
+                        self.logger.add_scalar(label, func(self), global_step=global_step)
                     total_loss = 0
 
                 # Evaluate and report validation loss
@@ -240,6 +250,7 @@ class Sequential():
                     self.model.eval()
                     with torch.no_grad():
                         total_loss = 0
+                        i = 0
                         for i, (data, params) in enumerate(valid_loader):
                             loss = self.model._loss(data.to(self.device), params.to(self.device))
                             total_loss += loss.item()

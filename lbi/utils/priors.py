@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+from torch.distributions import Independent, Uniform
 from abc import ABC, abstractmethod
 
 
@@ -33,23 +35,3 @@ class Prior(ABC):
                 Array of log probabilities (same size as x)
         """
         pass
-    
-
-class Uniform(Prior):
-    """
-    A uniform-distributed prior.
-    """
-    def __init__(self, lb, ub):
-        self.lb = float(lb)
-        self.ub = float(ub)
-        assert self.ub > self.lb
-    
-    def sample(self, n_samples):
-        return np.random.uniform(self.lb, self.ub, size=[n_samples])
-    
-    def log_prob(self, x):
-        prob = (1. / (self.ub - self.lb)) * np.ones_like(x)
-        mask = np.where((x < self.lb) | (x >= self.ub))
-        log_prob = np.log(prob)
-        log_prob[mask] = -np.inf
-        return log_prob
