@@ -326,7 +326,7 @@ class Sequential():
         if global_step == 0:
             prior_samples = self.sample_prior(num_samples=self.num_initial_samples,
                                               prior_only=True)
-        else:
+        else:  # sample posterior
             prior_samples = self.sample_prior(num_samples=self.num_samples_per_round,
                                               prior_only=False)
         if show_plots:
