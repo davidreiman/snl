@@ -22,6 +22,7 @@ class Sequential():
                  scaler=None,
                  obs_truth=None,
                  n_rounds=10,
+                 reset_every_round=False,
                  sims_per_model=1,
                  mcmc_walkers=5,
                  mcmc_steps=250,
@@ -115,6 +116,10 @@ class Sequential():
         self.scaler = scaler
         self.obs_truth = obs_truth
         self.n_rounds = n_rounds
+        self.reset_every_round = reset_every_round
+        if self.reset_every_round:
+            self._base_model_params = model.state_dict().copy()
+            self._base_optimizer_params = optimizer.state_dict().copy()
         self.num_initial_samples = num_initial_samples
         self.num_samples_per_round = num_samples_per_round
         self.summary_interval = summary_interval
@@ -350,6 +355,9 @@ class Sequential():
         global_step = 0
         for r in range(self.n_rounds):
             round_start = time.time()
+            if self.reset_every_round:
+                self.model.load_state_dict(self._base_model_params)
+                self.optimizer.load_state_dict(self._base_optimizer_params)
 
             global_step = self.train_round(global_step)
 
