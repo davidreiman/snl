@@ -154,29 +154,28 @@ class Sequential():
         self.device = model.device
 
         self.data = {
-            'train_data': torch.empty([0, self.data_dim]).to(self.device),
-            'train_params': torch.empty([0, self.param_dim]).to(self.device),
-            'valid_data': torch.empty([0, self.data_dim]).to(self.device),
-            'valid_params': torch.empty([0, self.param_dim]).to(self.device)}
+            'train_data': torch.empty([0, self.data_dim]),
+            'train_params': torch.empty([0, self.param_dim]),
+            'valid_data': torch.empty([0, self.data_dim]),
+            'valid_params': torch.empty([0, self.param_dim])}
 
         if self.scaler is not None:
             with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
                 pickle.dump(scaler, f)
             obs_data = obs_data.cpu().numpy()
             obs_data = self.scaler.transform(obs_data)
-            obs_data = torch.from_numpy(obs_data).float().to(self.device)
+            obs_data = torch.from_numpy(obs_data).float()
         self.x0 = obs_data
 
     def add_data(self, data, params):
         if self.scaler is not None:
             data = data.cpu().numpy()
             data = self.scaler.transform(data)
-            data = torch.from_numpy(data).float().to(self.device)
+            data = torch.from_numpy(data).float()
         if self.param_scaler is not None:  # TODO: make this more general to work with other scalers
             mean = torch.from_numpy(self.param_scaler.mean_).float()
             scale = torch.from_numpy(self.param_scaler.scale_).float()
             params = (params - mean)/scale
-        data.to(self.device)
 
         # Select samples for validation
         n = data.shape[0]
@@ -194,7 +193,7 @@ class Sequential():
     def simulate(self, params):
         # TODO: Clean up numpy types
         if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float().to(self.device)
+            params = torch.from_numpy(params).float()
 
         params = params.reshape([-1, self.param_dim])
         params = torch.cat(self.sims_per_model * [params])
