@@ -154,10 +154,10 @@ class Sequential():
         self.device = model.device
 
         self.data = {
-            'train_data': torch.empty([0, self.data_dim]),
-            'train_params': torch.empty([0, self.param_dim]),
-            'valid_data': torch.empty([0, self.data_dim]),
-            'valid_params': torch.empty([0, self.param_dim])}
+            'train_data': torch.empty([0, self.data_dim]).cpu(),
+            'train_params': torch.empty([0, self.param_dim]).cpu(),
+            'valid_data': torch.empty([0, self.data_dim]).cpu(),
+            'valid_params': torch.empty([0, self.param_dim]).cpu()}
 
         if self.scaler is not None:
             with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
