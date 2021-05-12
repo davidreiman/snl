@@ -20,6 +20,7 @@ class Sequential():
                  summary_interval=50,
                  validation_interval=250,
                  scaler=None,
+                 param_scaler=None,
                  obs_truth=None,
                  n_rounds=10,
                  reset_every_round=False,
@@ -114,6 +115,7 @@ class Sequential():
         self.param_names = param_names
         self.data_dim = obs_data.shape[1]
         self.scaler = scaler
+        self.param_scaler = param_scaler
         self.obs_truth = obs_truth
         self.n_rounds = n_rounds
         self.reset_every_round = reset_every_round
@@ -137,6 +139,7 @@ class Sequential():
         self.grad_clip = grad_clip
         if settings_path is None:
             self.log_dir = None
+            self.log_dir = log_dir
         else:
             self.log_dir = prep_log_dir(log_dir=log_dir, settings_path=settings_path)
         # default to bare-bones logger
@@ -169,6 +172,10 @@ class Sequential():
             data = data.cpu().numpy()
             data = self.scaler.transform(data)
             data = torch.from_numpy(data).float().to(self.device)
+        if self.param_scaler is not None:  # TODO: make this more general to work with other scalers
+            mean = torch.from_numpy(self.param_scaler.mean_).float()
+            scale = torch.from_numpy(self.param_scaler.scale_).float()
+            params = (params - mean)/scale
         data.to(self.device)
 
         # Select samples for validation
@@ -295,8 +302,15 @@ class Sequential():
         def model_wrapper(param_dict):
             if param_dict is not None:
                 # TODO: Figure out if there's a way to pass params without dict
-                log_prob = self.log_prior(param_dict['params'].to(self.device))
-                log_prob += self.model.log_prob(self.x0, param_dict['params'].to(self.device))
+                params = param_dict['params']
+                log_prob = self.log_prior(params.to(self.device))
+
+                if self.param_scaler is not None:
+                    mean = torch.from_numpy(self.param_scaler.mean_).float()
+                    scale = torch.from_numpy(self.param_scaler.scale_).float()
+                    params = (params - mean)/scale
+
+                log_prob += self.model.log_prob(self.x0, params.to(self.device))
                 return -log_prob
 
         initial_params = self.priors.sample((1,))
