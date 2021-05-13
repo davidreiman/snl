@@ -314,6 +314,8 @@ class Sequential():
         # add correction from standard scalar
         if "Standard" in self.scaler.__str__():
             scaling_correction = - np.log(self.scaler.scale_.prod())
+        else:
+            scaling_correction = 0
 
         return self.model.log_prob(data.to(self.device), params.to(self.device)) + scaling_correction
 
