@@ -297,6 +297,27 @@ class Sequential():
             log_prob = log_prob + self.model.log_prob(self.x0, params)
         return log_prob
 
+    def log_prob(self, data, params=None):
+        """
+        Meant to  take care of scaling
+        """
+        if params is not None:
+            if self.param_scaler is not None:
+                # doing it this way to preserve any derivatives (if necessary)
+                mean = torch.from_numpy(self.param_scaler.mean_).float()
+                scale = torch.from_numpy(self.param_scaler.scale_).float()
+                params = (params - mean)/scale
+
+        data = self.scaler.transform(data.cpu().numpy())
+        data = torch.from_numpy(data).float()
+
+        # add correction from standard scalar
+        if "Standard" in self.scaler.__str__():
+            scaling_correction = - np.log(self.scaler.scale_.prod())
+
+        return self.model.log_prob(data.to(self.device), params.to(self.device)) + scaling_correction
+
+
     def hmc(self, num_samples=50, walker_steps=200, burn_in=100):
         def model_wrapper(param_dict):
             if param_dict is not None:
@@ -309,6 +330,7 @@ class Sequential():
                     scale = torch.from_numpy(self.param_scaler.scale_).float()
                     params = (params - mean)/scale
 
+                # TODO: Clean this up to use new self.log_prob method
                 log_prob += self.model.log_prob(self.x0, params.to(self.device))
                 return -log_prob
 
