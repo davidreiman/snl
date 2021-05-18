@@ -159,12 +159,6 @@ class Sequential():
             'valid_data': torch.empty([0, self.data_dim]).cpu(),
             'valid_params': torch.empty([0, self.param_dim]).cpu()}
 
-        if self.scaler is not None:
-            with open(f'{self.log_dir}/scaler.pkl', 'wb') as f:
-                pickle.dump(scaler, f)
-            obs_data = obs_data.cpu().numpy()
-            obs_data = self.scaler.transform(obs_data)
-            obs_data = torch.from_numpy(obs_data).float()
         self.x0 = obs_data
 
     def add_data(self, data, params):
@@ -287,16 +281,6 @@ class Sequential():
     def log_prior(self, params):
         return self.priors.log_prob(params)
 
-    def log_posterior(self, params, prior_only=False):
-        if type(params) is np.ndarray:
-            params = torch.from_numpy(params).float().to(self.device)
-
-        log_prob = self.log_prior(params)
-        if not prior_only:
-            params = torch.stack(self.x0.shape[0] * [params])
-            log_prob = log_prob + self.model.log_prob(self.x0, params)
-        return log_prob
-
     def log_prob(self, data, params=None):
         """
         Meant to  take care of scaling
@@ -308,9 +292,11 @@ class Sequential():
                 scale = torch.from_numpy(self.param_scaler.scale_).float()
                 params = (params - mean)/scale
 
-        data = self.scaler.transform(data.cpu().numpy())
-        data = torch.from_numpy(data).float()
+        if self.scaler is not None:
+            data = self.scaler.transform(data.cpu().numpy())
+            data = torch.from_numpy(data)
 
+        data = data.float()
         # add correction from standard scalar
         if "Standard" in self.scaler.__str__():
             scaling_correction = - np.log(self.scaler.scale_.prod())
@@ -319,25 +305,28 @@ class Sequential():
 
         return self.model.log_prob(data.to(self.device), params.to(self.device)) + scaling_correction
 
+    def log_posterior(self, params, prior_only=False):
+        if type(params) is np.ndarray:
+            params = torch.from_numpy(params).float().to(self.device)
 
-    def hmc(self, num_samples=50, walker_steps=200, burn_in=100):
-        def model_wrapper(param_dict):
+        log_prob = self.log_prior(params)
+        if not prior_only:
+            # params = torch.stack(self.x0.shape[0] * [params])
+            # print(self.x0.shape, params.shape)
+            log_prob = log_prob + self.log_prob(self.x0, params)
+        return log_prob
+
+    def hmc(self, num_samples=50, walker_steps=200, burn_in=100, initial_params=None):
+        def posterior_wrapper(param_dict):
             if param_dict is not None:
                 # TODO: Figure out if there's a way to pass params without dict
                 params = param_dict['params']
-                log_prob = self.log_prior(params.to(self.device))
+                return -self.log_posterior(params)
 
-                if self.param_scaler is not None:
-                    mean = torch.from_numpy(self.param_scaler.mean_).float()
-                    scale = torch.from_numpy(self.param_scaler.scale_).float()
-                    params = (params - mean)/scale
+        if initial_params is None:
+            initial_params = self.priors.sample((1,))
 
-                # TODO: Clean this up to use new self.log_prob method
-                log_prob += self.model.log_prob(self.x0, params.to(self.device))
-                return -log_prob
-
-        initial_params = self.priors.sample((1,))
-        nuts_kernel = NUTS(potential_fn=model_wrapper, adapt_step_size=True)
+        nuts_kernel = NUTS(potential_fn=posterior_wrapper, adapt_step_size=True)
         mcmc = MCMC(nuts_kernel, num_samples=walker_steps, warmup_steps=burn_in,
                     initial_params={"params": initial_params})
         mcmc.run(self.x0)
