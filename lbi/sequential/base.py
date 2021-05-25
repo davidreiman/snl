@@ -401,6 +401,7 @@ class Sequential():
             print("file path", f"{self.log_dir}/model.pt")
             self.logger.log_asset(f"{self.log_dir}/model.pt", file_name='model.pt')
             self.logger.log_asset(f"{self.log_dir}/scaler.pkl", file_name='scaler.pkl')
+            self.logger.log_asset(f"{self.log_dir}/param_scaler.pkl", file_name='param_scaler.pkl')
         self.logger.close()
 
     def make_plots(self):

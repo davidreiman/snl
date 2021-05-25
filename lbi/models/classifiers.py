@@ -3,15 +3,13 @@ import torch.nn as nn
 
 
 class ResBlock(nn.Module):
-    def __init__(self, width=128, activation=nn.SELU):
+    def __init__(self, width=128):
         super(ResBlock, self).__init__()
         self.dense = nn.Linear(width, width)
-        self.act = activation()
-        self.layers = nn.ModuleList([self.dense, self.act])
+        self.layers = nn.ModuleList([self.dense])
 
     def forward(self, x):
-        x = x + self.dense(x)
-        return self.act(x)
+        return torch.cat([x, self.dense(x)], dim=-1)
 
 
 class Unsqueeze(nn.Module):
