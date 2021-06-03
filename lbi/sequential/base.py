@@ -305,7 +305,12 @@ class Sequential():
 
         return self.model.log_prob(data.to(self.device), params.to(self.device)) + scaling_correction
 
-    def log_posterior(self, params, prior_only=False):
+    def log_posterior(self, data=None, params=None, context=None, prior_only=False):
+        if data is None:
+            data = self.x0
+        if params is None:
+            raise ValueError
+
         if type(params) is np.ndarray:
             params = torch.from_numpy(params).float().to(self.device)
 
@@ -313,7 +318,9 @@ class Sequential():
         if not prior_only:
             # params = torch.stack(self.x0.shape[0] * [params])
             # print(self.x0.shape, params.shape)
-            log_prob = log_prob + self.log_prob(self.x0, params)
+            if context is None:
+                context = params
+            log_prob = log_prob + self.log_prob(data, context)
         return log_prob
 
     def hmc(self, num_samples=50, walker_steps=200, burn_in=100, initial_params=None):
