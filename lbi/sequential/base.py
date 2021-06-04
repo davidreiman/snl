@@ -288,8 +288,8 @@ class Sequential():
         if params is not None:
             if self.param_scaler is not None:
                 # doing it this way to preserve any derivatives (if necessary)
-                mean = torch.from_numpy(self.param_scaler.mean_).float().to(self.model.device)
-                scale = torch.from_numpy(self.param_scaler.scale_).float().to(self.model.device)
+                mean = torch.from_numpy(self.param_scaler.mean_).float().to(self.device)
+                scale = torch.from_numpy(self.param_scaler.scale_).float().to(self.device)
                 params = (params - mean)/scale
 
         if self.scaler is not None:
