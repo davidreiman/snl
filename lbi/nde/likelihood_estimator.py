@@ -10,6 +10,7 @@ class NeuralLikelihoodEstimator(NeuralDensityEstimator):
         pass
 
     def log_prob(self, data, context):
+        print(f"data shape: {data.shape}, context shape: {context.shape}")
         return self.model.log_prob(data.to(self.device), context.to(self.device))
 
     def sample(self, n_samples, context=None):
