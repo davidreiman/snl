@@ -336,7 +336,10 @@ class Sequential():
         nuts_kernel = NUTS(potential_fn=posterior_wrapper, adapt_step_size=True)
         mcmc = MCMC(nuts_kernel, num_samples=walker_steps, warmup_steps=burn_in,
                     initial_params={"params": initial_params})
-        mcmc.run(self.x0)
+
+        #TODO: make sure x0 is being used in posterior (because it's not being used in run)
+        # mcmc.run(self.x0)
+        mcmc.run()
         return mcmc.get_samples(num_samples)['params'].view(num_samples, -1)
 
     def sample_prior(self, num_samples=1000, prior_only=True):
