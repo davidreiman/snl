@@ -125,8 +125,5 @@ venv.bak/
 
 # images
 *.png
-runs/test_run/hparams.p
-runs/test_run/model.pt
-runs/test_run/Losses/train.p
-runs/test_run/Losses/valid.p
-runs/test_run/Misc/grad_norm.p
+runs/
+.vscode/settings.json
