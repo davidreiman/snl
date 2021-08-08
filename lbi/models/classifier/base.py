@@ -23,6 +23,24 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, n_layers=5, width=128):
 
     """
 
+    # @partial(jax.jit, static_argnums=(0, ))
+    def train_step(optimizer, params, opt_state, batch):
+        def step(params, batch, opt_state):
+            nll, grads = jax.value_and_grad(loss)(params.fast, batch)
+            updates, opt_state = optimizer.update(grads, opt_state, params)
+
+            return nll, optax.apply_updates(params, updates), opt_state
+
+        return step(params, batch, opt_state)
+
+    # @jax.jit
+    def valid_step(params, batch):
+        def step(params, batch):
+            nll = loss(params.fast, batch)
+            return (nll,)
+
+        return step(params, batch)
+
     def loss(params, batch, average=True):
         """binary cross entropy with logits
         taken from jaxchem
@@ -50,24 +68,4 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, n_layers=5, width=128):
 
     _, initial_params = init_random_params(model_rng, (-1, obs_dim + theta_dim))
 
-    return (initial_params, loss, logit_d)
-
-
-@partial(jax.jit, static_argnums=(0, 1,))
-def train_step(loss, optimizer, params, opt_state, batch):
-    def step(params, opt_state, batch):
-        nll, grads = jax.value_and_grad(loss)(params.fast, batch)
-        updates, opt_state = optimizer.update(grads, opt_state, params)
-
-        return nll, optax.apply_updates(params, updates), opt_state
-
-    return step(params, opt_state, batch)
-
-
-@partial(jax.jit, static_argnums=(0,))
-def valid_step(loss, params, batch):
-    def step(params, batch):
-        nll = loss(params.fast, batch)
-        return (nll,)
-
-    return step(params, batch)
+    return initial_params, loss, logit_d, train_step, valid_step

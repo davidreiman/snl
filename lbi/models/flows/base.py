@@ -20,6 +20,26 @@ def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, n_layers=5):
         sample: a function from parameters to samples of the parameters
 
     """
+    @partial(jax.jit, static_argnums=(0,))
+    def train_step(optimizer, params, opt_state, batch):
+        def step(params, batch, opt_state):
+            batch = jax.numpy.hstack(batch)
+            nll, grads = jax.value_and_grad(loss)(params.fast, batch)
+            updates, opt_state = optimizer.update(grads, opt_state, params)
+
+            return nll, optax.apply_updates(params, updates), opt_state
+
+        return step(params, batch, opt_state)
+
+
+    @jax.jit
+    def valid_step(loss, params, batch):
+        def step(params, batch):
+            batch = jax.numpy.hstack(batch)
+            nll = loss(params.fast, batch)
+            return (nll,)
+
+        return step(params, batch)
 
     def loss(params, inputs):
         return -log_pdf(params, inputs).mean()
@@ -31,27 +51,5 @@ def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, n_layers=5):
 
     init_fun = flow_model(n_layers)
     initial_params, log_pdf, sample = init_fun(model_rng, obs_dim + theta_dim)
-    return (initial_params, loss, log_pdf, sample)
+    return initial_params, loss, (log_pdf, sample), train_step, valid_step
 
-
-# @jax.jit
-@partial(jax.jit, static_argnums=(0,1,))
-def train_step(loss, optimizer, params, opt_state, batch):
-    def step(params, opt_state, batch):
-        batch = jax.numpy.hstack(batch)
-        nll, grads = jax.value_and_grad(loss)(params.fast, batch)
-        updates, opt_state = optimizer.update(grads, opt_state, params)
-
-        return nll, optax.apply_updates(params, updates), opt_state
-
-    return step(params, opt_state, batch)
-
-
-@partial(jax.jit, static_argnums=(0,))
-def valid_step(loss, params, batch):
-    def step(params, batch):
-        batch = jax.numpy.hstack(batch)
-        nll = loss(params.fast, batch)
-        return (nll,)
-
-    return step(params, batch)
