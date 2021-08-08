@@ -4,7 +4,7 @@ from functools import partial
 from .maf import MaskedAffineFlow
 
 
-def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, n_layers=5):
+def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, num_layers=5):
     """
     Initialize a flow model.
 
@@ -33,7 +33,7 @@ def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, n_layers=5):
 
 
     @jax.jit
-    def valid_step(loss, params, batch):
+    def valid_step(params, batch):
         def step(params, batch):
             batch = jax.numpy.hstack(batch)
             nll = loss(params.fast, batch)
@@ -49,7 +49,7 @@ def InitializeFlow(model_rng, obs_dim, theta_dim, flow_model=None, n_layers=5):
     if type(model_rng) is int:
         model_rng = jax.random.PRNGKey(model_rng)
 
-    init_fun = flow_model(n_layers)
+    init_fun = flow_model(num_layers)
     initial_params, log_pdf, sample = init_fun(model_rng, obs_dim + theta_dim)
     return initial_params, loss, (log_pdf, sample), train_step, valid_step
 

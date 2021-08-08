@@ -24,12 +24,12 @@ def SmoothedBoxPrior(theta_dim=5, lower=0.0, upper=1.0, sigma=0.1, variance=Fals
         _theta_dist = np.clip(np.abs(theta - _center) - _range, 0, None)
         return -0.5 * (_theta_dist ** 2 / variance + np.log(2 * np.pi * variance))
 
-    def sample(rng, n_samples: int = 1):
+    def sample(rng, num_samples: int = 1):
         """
         Samples are taken from a hard uniform distribution between the bounds
         """
         return jax.random.uniform(
-            rng, shape=(n_samples, theta_dim), minval=lower, maxval=upper
+            rng, shape=(num_samples, theta_dim), minval=lower, maxval=upper
         )
 
     return log_prob, sample

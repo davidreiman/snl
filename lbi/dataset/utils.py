@@ -17,7 +17,7 @@ def getDataLoaderBuilder(
     ], "sequential_mode must be 'flow' or 'classifier'"
     
     if sequential_mode == "flow":
-        collate_fn = FlowCollate_fn
+        collate_fn = None
     elif sequential_mode == "classifier":
         collate_fn = LikelihoodRatioCollate_fn
 

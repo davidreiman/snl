@@ -16,19 +16,18 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "classifier"  # "classifier" or "flow"
-mssm_model = "cMSSM"
+model_type = "flow"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
 num_layers = 4
-width = 128
+width = 32
 
 # Optimizer hyperparmeters
 max_norm = 1e-3
-learning_rate = 1e-1
+learning_rate = 3e-4
 sync_period = 5
 slow_step_size = 0.5
 
@@ -51,8 +50,8 @@ true_theta = np.array([0.7, -2.9, -1.0, -0.9, 0.6])
 X_true = simulate(rng, true_theta, num_samples_per_theta=1)
 
 data_loader_builder = getDataLoaderBuilder(
-    sequential_mode="classifier",
-    batch_size=128,
+    sequential_mode=model_type,
+    batch_size=512,
     train_split=0.9,
     num_workers=0,
     add_noise=False,
@@ -106,8 +105,8 @@ trainer = getTrainer(
     optimizer,
     train_step,
     valid_step=valid_step,
-    nsteps=1500,
-    eval_interval=250,
+    nsteps=100000,
+    eval_interval=10,
     logger=logger,
     train_kwargs=None,
     valid_kwargs=None,
@@ -125,45 +124,12 @@ model_params, Theta_post = sequential(
     opt_state,
     trainer,
     data_loader_builder,
-    num_round=3,
-    num_initial_samples=1000,
-    num_samples_per_round=1000,
+    num_round=1,
+    num_initial_samples=10000,
+    num_samples_per_round=2000,
     num_samples_per_theta=1,
-    num_chains=32,
+    num_chains=64,
 )
-
-def potential_fn(theta):
-    if len(theta.shape) == 1:
-        theta = theta[None, :]
-        
-    model_inputs = np.hstack([X_true, theta])
-    log_post = -log_pdf(model_params.slow, model_inputs) - log_prior(theta)
-    return log_post.sum()
-
-
-
-mcmc = hmc(
-    rng,
-    potential_fn,
-    true_theta,
-    adapt_step_size=True,
-    adapt_mass_matrix=True,
-    dense_mass=True,
-    step_size=1e0,
-    max_tree_depth=12,
-    num_warmup=1000,
-    num_samples=1000,
-    num_chains=1,
-)
-mcmc.print_summary()
-hmc_samples = mcmc.get_samples()
-
-corner.corner(onp.array(hmc_samples), 
-              range=[(-3, 3) for i in range(theta_dim)],
-              )
-plt.show()
-# logger.plot("corner", plt, close_plot=False)
-# fig.savefig(f"plots/{mssm_model}_{model_type}_corner.png")
 
 
 # logger.close()

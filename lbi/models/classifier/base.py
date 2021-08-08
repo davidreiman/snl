@@ -23,7 +23,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
 
     """
 
-    # @partial(jax.jit, static_argnums=(0, ))
+    @partial(jax.jit, static_argnums=(0, ))
     def train_step(optimizer, params, opt_state, batch):
         def step(params, batch, opt_state):
             nll, grads = jax.value_and_grad(loss)(params.fast, batch)
@@ -33,7 +33,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
 
         return step(params, batch, opt_state)
 
-    # @jax.jit
+    @jax.jit
     def valid_step(params, batch):
         def step(params, batch):
             nll = loss(params.fast, batch)

@@ -34,13 +34,11 @@ def _simulate_X(rng, simulate, theta, num_samples_per_theta: int = 1):
     return simulate(rng, theta, num_samples_per_theta=num_samples_per_theta)
 
 
-def _trainum_model(
-    trainer, model_params, opt_state, trainum_dataloader, valid_dataloader
-):
+def _train_model(trainer, model_params, opt_state, train_dataloader, valid_dataloader):
     """
     Train model
     """
-    return trainer(model_params, opt_state, trainum_dataloader, valid_dataloader)
+    return trainer(model_params, opt_state, train_dataloader, valid_dataloader)
 
 
 def _sample_posterior(
@@ -49,8 +47,8 @@ def _sample_posterior(
     log_pdf,
     log_prior,
     X_true,
-    init_theta,
-    num_samples,
+    init_theta=None,
+    num_samples=1000,
     num_chains=32,
 ):
     def potential_fn(theta):
@@ -70,7 +68,7 @@ def _sample_posterior(
         dense_mass=True,
         step_size=1e0,
         max_tree_depth=12,
-        num_warmup=100,
+        num_warmup=num_samples,
         num_samples=num_samples,
         num_chains=num_chains,
     )
@@ -81,12 +79,11 @@ def _sample_posterior(
 
 def _get_init_theta(model_params, log_pdf, X_true, Theta, num_theta=1):
     tiled_X = np.tile(X_true, (Theta.shape[0], 1))
-    lps = log_pdf(model_params, np.hstack([tiled_X, Theta]))
+    lps = log_pdf(model_params, np.hstack([tiled_X, Theta])).squeeze()
     init_theta = np.array(Theta[np.argsort(lps)])[:num_theta]
     return init_theta
 
 
-# @jax.jit
 def _sequential_round(
     rng,
     X_true,
@@ -111,9 +108,9 @@ def _sequential_round(
     if X is None:
         X = _simulate_X(rng, simulate, Theta, num_samples_per_theta)
 
-    trainum_dataloader, valid_dataloader = data_loader_builder(X=X, Theta=Theta)
-    model_params = _trainum_model(
-        trainer, model_params, opt_state, trainum_dataloader, valid_dataloader
+    train_dataloader, valid_dataloader = data_loader_builder(X=X, Theta=Theta)
+    model_params = _train_model(
+        trainer, model_params, opt_state, train_dataloader, valid_dataloader
     )
 
     # some mcmc stuff
@@ -154,11 +151,15 @@ def sequential(
     num_chains=32,
     Theta=None,
     X=None,
-    normailze=None,
+    normalize=None,
+    logger=None,
 ):
 
     if get_init_theta is None:
-        get_init_theta = _get_init_theta
+        # get_init_theta = _get_init_theta
+        get_init_theta = lambda mp, lp, xt, th, num_theta=num_chains: sample_prior(
+            rng, num_samples=num_theta
+        )
 
     Theta_post = Theta
     for i in range(num_round):
@@ -181,5 +182,28 @@ def sequential(
             Theta=Theta_post,
             X=None,
         )
+
+        # DEBUGGING
+        # TODO: Add diagnostics to each round
+        import corner
+        import matplotlib.pyplot as plt
+        import numpy as onp
+
+        theta_dim = Theta.shape[-1]
+        true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])
+
+        corner.corner(
+            onp.array(Theta_post),
+            range=[(-3, 3) for i in range(theta_dim)],
+            truths=true_theta,
+            bins=75,
+            smooth=(1.0),
+            smooth1d=(1.0),
+        )
+        plt.show()
+        # DEBUGGING
+
+        # inefficient because re-sims old Theta
+        Theta_post = np.vstack([Theta, Theta_post])
 
     return model_params, Theta_post
