@@ -6,7 +6,7 @@ from functools import partial
 from .classifier import Classifier
 
 
-def InitializeClassifier(model_rng, obs_dim, theta_dim, n_layers=5, width=128):
+def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128):
     """
     Initialize a likelihood ratio model.
 
@@ -14,7 +14,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, n_layers=5, width=128):
         model_rng: a jax random number generator
         obs_dim: dimensionality of the observations
         theta_dim: dimensionality of the simulation parameters
-        n_layers: number of affine layers in the flow
+        num_layers: number of affine layers in the flow
 
     Returns:
         initial_params: a list of parameters
@@ -61,7 +61,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, n_layers=5, width=128):
         return np.sum(L)
 
 
-    init_random_params, logit_d = Classifier(n_layers=n_layers, width=width)
+    init_random_params, logit_d = Classifier(num_layers=num_layers, width=width)
 
     if type(model_rng) is int:
         model_rng = jax.random.PRNGKey(model_rng)

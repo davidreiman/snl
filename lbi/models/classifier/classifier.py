@@ -16,14 +16,14 @@ def ResidualBlock(width, act=None):
     )
 
 
-def Classifier(n_layers=5, width=128, use_residual=True, act=None):
+def Classifier(num_layers=5, width=128, use_residual=True, act=None):
     if act is None:
         act = stax.Selu
 
     if use_residual:
-        layers = [ResidualBlock(width) for _ in range(n_layers)]
+        layers = [ResidualBlock(width) for _ in range(num_layers)]
     else:
-        layers = [lyr for _ in range(n_layers) for lyr in (stax.Dense(width), act)]
+        layers = [lyr for _ in range(num_layers) for lyr in (stax.Dense(width), act)]
     # append a final linear layer for binary classification
     layers += [stax.Dense(1)]
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     seed = 1234
 
     X, y = load_breast_cancer(return_X_y=True)
-    n_feat = X.shape[1]
+    num_feat = X.shape[1]
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.15, stratify=y, random_state=seed
     )
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         TensorDataset(X_train_s, y_train), batch_size=batch_size, shuffle=True
     )
 
-    init_random_params, logit_d = Classifier(n_layers=3, width=128)
+    init_random_params, logit_d = Classifier(num_layers=3, width=128)
     _, params = init_random_params(jax.random.PRNGKey(seed), (-1, X_train_s.shape[-1]))
 
     learning_rate = 0.01

@@ -32,7 +32,6 @@ def getTrainer(
         try:
             for _step_num in iterator:
                 batch = [np.array(a) for a in next(iter(train_dataloader))]
-                print(batch)
                 nll, params, opt_state = train_step(
                     optimizer,
                     params,
@@ -51,7 +50,7 @@ def getTrainer(
                     batch = [np.array(a) for a in next(iter(valid_dataloader))]
 
                     # assumes first valid metric is the validation loss
-                    valid_metrics = valid_step(loss, params, batch)
+                    valid_metrics = valid_step(params, batch)
                     if valid_metrics[0] < best_valid_loss:
                         best_valid_loss = valid_metrics[0]
                         best_params = params
@@ -70,6 +69,6 @@ def getTrainer(
         if valid_step is None:
             best_params = params
 
-        return best_params, best_valid_loss
+        return best_params
 
     return trainer

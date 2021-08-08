@@ -58,3 +58,4 @@ class GaussianNoiseDataset(BaseDataset):
 
         theta = self.Theta[index]
         return x, theta
+

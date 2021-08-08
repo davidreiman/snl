@@ -36,36 +36,6 @@ def _calc_vars(theta: np.array):
     
     return mu, Sigma
 
-    
-# def _calc_vars2(theta: np.array):
-#     theta_0, theta_1, theta_2, theta_3, theta_4 = theta
-    
-#     mu = np.stack([theta_0, theta_1])
-#     s_1 = theta_2 ** 2
-#     s_2 = theta_3 ** 2
-#     rho = np.tanh(theta_4) 
-#     rho = 1e-3 if rho == 0 else rho
-#     Sigma = np.array([[s_1 ** 2, rho * s_1 * s_2], [rho * s_1 * s_2, s_2 ** 2]])
-#     return mu, Sigma
-
-# sample from multi-variate gaussian
-# def sample(rng, theta: np.array, n_samples_per_theta: int):
-#     """
-#     Sample from the posterior.
-#     """
-#     def _sample(_th):
-#         mu, Sigma = _calc_vars(_th)
-#         samp = jax.random.multivariate_normal(rng, mu, Sigma, shape=(4 * n_samples_per_theta, 1))
-#         samp = np.reshape(samp, (n_samples_per_theta, 4, -1))
-#         return samp
-        
-#     assert theta.shape[-1], "theta must be a 1/2D array with 5D final dim"
-#     if theta.ndim == 1:
-#         theta = theta.reshape((1, theta.shape[0]))
-        
-#     samples = [_sample(_th) for _th in theta]
-#     return np.stack(samples).squeeze(1)
-
 def log_likelihood(x: np.array, theta: np.array):
     """
     Calculate the log likelihood of the data given the posterior.
@@ -79,25 +49,25 @@ def log_likelihood(x: np.array, theta: np.array):
     )
 
 # sample from multi-variate gaussian
-def sample(rng, theta: np.array, n_samples_per_theta: int):
+def sample(rng, theta: np.array, num_samples_per_theta: int):
     """
     Sample from the posterior.
     """
     def _sample(_th):
         mu, Sigma = _calc_vars(_th)
-        samp = jax.random.multivariate_normal(rng, mu, Sigma, shape=(4 * n_samples_per_theta, 1))
-        samp = np.reshape(samp, (n_samples_per_theta, 4, -1))
+        samp = jax.random.multivariate_normal(rng, mu, Sigma, shape=(4 * num_samples_per_theta, 1))
+        samp = np.reshape(samp, (num_samples_per_theta, 4, -1))
         return samp
         
     assert theta.shape[-1], "theta must be a 1/2D array with 5D final dim"
     if theta.ndim == 1:
         theta = theta.reshape((1, theta.shape[0]))
-    return jax.vmap(_sample)(theta).squeeze(1)
+    return np.reshape(jax.vmap(_sample)(theta), (theta.shape[0]*num_samples_per_theta, -1))
 
 def get_simulator():
     obs_dim = 8  # (4*2)
     theta_dim = 5 
-    # simulate = functools.partial(sample, n_samples_per_theta=1)
+    # simulate = functools.partial(sample, num_samples_per_theta=1)
     simulate = sample
     return simulate, obs_dim, theta_dim
     
@@ -115,7 +85,7 @@ if __name__ == "__main__":
     rng, _, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
     
     true_theta = np.array([0.7, -2.9, -1.0, -0.9, 0.6])
-    observation = sample(rng, true_theta, n_samples=1)[0]
+    observation = sample(rng, true_theta, num_samples=1)[0]
     
     
     lst = np.array(list(itertools.product([0, 1], repeat=theta_dim)))
