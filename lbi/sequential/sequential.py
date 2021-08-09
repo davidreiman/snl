@@ -55,8 +55,7 @@ def _sample_posterior(
         if len(theta.shape) == 1:
             theta = theta[None, :]
 
-        model_inputs = np.hstack([X_true, theta])
-        log_post = -log_pdf(model_params, model_inputs) - log_prior(theta)
+        log_post = -log_pdf(model_params, inputs=X_true, context=theta) - log_prior(theta)
         return log_post.sum()
 
     mcmc = hmc(
@@ -67,7 +66,7 @@ def _sample_posterior(
         adapt_mass_matrix=True,
         dense_mass=True,
         step_size=1e0,
-        max_tree_depth=12,
+        max_tree_depth=6,
         num_warmup=num_samples,
         num_samples=num_samples,
         num_chains=num_chains,
@@ -79,7 +78,7 @@ def _sample_posterior(
 
 def _get_init_theta(model_params, log_pdf, X_true, Theta, num_theta=1):
     tiled_X = np.tile(X_true, (Theta.shape[0], 1))
-    lps = log_pdf(model_params, np.hstack([tiled_X, Theta])).squeeze()
+    lps = log_pdf(model_params, tiled_X, Theta).squeeze()
     init_theta = np.array(Theta[np.argsort(lps)])[:num_theta]
     return init_theta
 
@@ -156,10 +155,10 @@ def sequential(
 ):
 
     if get_init_theta is None:
-        # get_init_theta = _get_init_theta
-        get_init_theta = lambda mp, lp, xt, th, num_theta=num_chains: sample_prior(
-            rng, num_samples=num_theta
-        )
+        get_init_theta = _get_init_theta
+        # get_init_theta = lambda mp, lp, xt, th, num_theta=num_chains: sample_prior(
+        #     rng, num_samples=num_theta
+        # )
 
     Theta_post = Theta
     for i in range(num_round):

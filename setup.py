@@ -24,6 +24,7 @@ setup_keywords['provides'] = [setup_keywords['name']]
 setup_keywords['requires'] = ['Python (>3.7.0)']
 setup_keywords['install_requires'] = [
     'jax', 'trax', 'optax', 'torch', 'nflows', 'pyro-ppl', 'corner', 'scikit-learn', 'tqdm']
+setup_keywords['dependency_links'] = ['http://github.com/jtamanas/jax-flows/tarball/master#egg=jax-flows-0.0.dev0']
 setup_keywords['zip_safe'] = False
 setup_keywords['use_2to3'] = False
 setup_keywords['packages'] = find_packages()
