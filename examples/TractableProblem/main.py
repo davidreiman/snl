@@ -27,7 +27,7 @@ width = 128
 
 # Optimizer hyperparmeters
 max_norm = 1e-3
-learning_rate = 3e-4
+learning_rate = 1e-4
 sync_period = 5
 slow_step_size = 0.5
 
@@ -80,6 +80,7 @@ else:
         obs_dim=obs_dim,
         theta_dim=theta_dim,
         num_layers=num_layers,
+        hidden_dim=width,
     )
 
 
@@ -87,7 +88,7 @@ else:
 fast_optimizer = optax.chain(
     # Set the parameters of Adam optimizer
     optax.adam(learning_rate=learning_rate, b1=0.9, b2=0.999, eps=1e-8),
-    # optax.adaptive_grad_clip(max_norm),
+    optax.adaptive_grad_clip(max_norm),
 )
 optimizer = optax.lookahead(
     fast_optimizer, sync_period=sync_period, slow_step_size=slow_step_size
@@ -105,7 +106,7 @@ trainer = getTrainer(
     optimizer,
     train_step,
     valid_step=valid_step,
-    nsteps=100000,
+    nsteps=10000,
     eval_interval=10,
     logger=logger,
     train_kwargs=None,
@@ -124,8 +125,8 @@ model_params, Theta_post = sequential(
     opt_state,
     trainer,
     data_loader_builder,
-    num_round=1,
-    num_initial_samples=10000,
+    num_round=4,
+    num_initial_samples=4000,
     num_samples_per_round=2000,
     num_samples_per_theta=1,
     num_chains=64,
