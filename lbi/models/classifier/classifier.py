@@ -20,6 +20,7 @@ def Classifier(num_layers=5, width=128, use_residual=True, act=None):
     if act is None:
         act = stax.Selu
 
+
     if use_residual:
         layers = [ResidualBlock(width) for _ in range(num_layers)]
     else:
@@ -27,7 +28,11 @@ def Classifier(num_layers=5, width=128, use_residual=True, act=None):
     # append a final linear layer for binary classification
     layers += [stax.Dense(1)]
 
-    init_random_params, logit_d = stax.serial(*layers)
+    init_random_params, _logit_d = stax.serial(*layers)
+    
+    def logit_d(params, inputs, context):
+        return _logit_d(params, np.hstack([inputs, context]))
+    
     return init_random_params, logit_d
 
 

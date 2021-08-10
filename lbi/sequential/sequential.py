@@ -155,10 +155,10 @@ def sequential(
 ):
 
     if get_init_theta is None:
-        get_init_theta = _get_init_theta
-        # get_init_theta = lambda mp, lp, xt, th, num_theta=num_chains: sample_prior(
-        #     rng, num_samples=num_theta
-        # )
+        # get_init_theta = _get_init_theta
+        get_init_theta = lambda mp, lp, xt, th, num_theta=num_chains: sample_prior(
+            rng, num_samples=num_theta
+        )
 
     Theta_post = Theta
     for i in range(num_round):

@@ -48,7 +48,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
         obs, theta, label = batch
         label = label.squeeze()
         # log ratio is the logit of the discriminator
-        l_d = logit_d(params, np.hstack([obs, theta])).squeeze()
+        l_d = logit_d(params, obs, theta).squeeze()
         max_val = np.clip(-l_d, 0, None)
         L = (
             l_d
