@@ -45,7 +45,7 @@ def InitializeFlow(
 
         return step(params, batch)
 
-    def loss(params, inputs, context):
+    def loss(params, inputs, context=None):
         return -log_pdf(params, inputs, context).mean()
 
     if flow_model is None:

@@ -17,7 +17,9 @@ def get_masks(input_dim, context_dim=0, hidden_dim=64, num_hidden=1):
         mask = np.transpose(np.expand_dims(d1, -1) >= np.expand_dims(d0, 0)).astype(
             np.float32
         )
-        if i == 0:
+        if i == 0:  # pass in context
+            # TODO: This still doesn't pass context to the most-masked element.
+            #       Need to figure out how to do that effectively.
             mask = np.vstack((mask, np.ones((context_dim, mask.shape[-1]))))
         masks += [mask]
 

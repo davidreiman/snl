@@ -230,6 +230,4 @@ def sequential(
             plt.show()
         # DEBUGGING
 
-        # inefficient because re-sims old Theta
-
     return model_params, Theta_New
