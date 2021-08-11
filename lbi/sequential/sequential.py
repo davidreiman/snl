@@ -101,15 +101,25 @@ def _sequential_round(
     num_samples_per_round=100,
     num_samples_per_theta=1,
     num_chains=32,
-    Theta=None,
+    Theta_Old=None,
+    Theta_New=None,
     X=None,
     num_round=0,
 ):
-    if Theta is None:
-        Theta = _sample_theta(rng, sample_prior, num_initial_samples)
-    if X is None:
-        X = _simulate_X(rng, simulate, Theta, num_samples_per_theta)
-
+    # TODO: These if statements are a bit of a mess. Should be refactored.
+    if Theta_New is not None:
+        X_New = _simulate_X(rng, simulate, Theta_New, num_samples_per_theta)
+        
+    if Theta_Old is not None:
+        Theta = np.vstack([Theta_Old, Theta_New])
+    else:
+        Theta = Theta_New
+        
+    if X is not None:
+        X = np.vstack([X, X_New])
+    else: 
+        X = X_New
+        
     train_dataloader, valid_dataloader = data_loader_builder(X=X, Theta=Theta)
     model_params = _train_model(
         trainer, model_params, opt_state, train_dataloader, valid_dataloader, num_round=num_round,
@@ -167,10 +177,13 @@ def sequential(
             rng, num_samples=num_theta
         )
 
-    Theta_post = Theta
+    if Theta is None:
+        Theta_New = _sample_theta(rng, sample_prior, num_initial_samples)
+    else:
+        Theta_New = Theta
     for i in range(num_rounds):
         print(f"STARTING ROUND {i+1}")
-        model_params, X, Theta, Theta_post = _sequential_round(
+        model_params, X, Theta, Theta_New = _sequential_round(
             rng,
             X_true,
             model_params,
@@ -186,8 +199,9 @@ def sequential(
             num_samples_per_round=num_samples_per_round,
             num_samples_per_theta=num_samples_per_theta,
             num_chains=num_chains,
-            Theta=Theta_post,
-            X=None,
+            Theta_Old=Theta,
+            Theta_New=Theta_New,
+            X=X,
             num_round=i,
         )
 
@@ -201,7 +215,7 @@ def sequential(
         true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])
 
         corner.corner(
-            onp.array(Theta_post),
+            onp.array(Theta_New),
             range=[(-3, 3) for i in range(theta_dim)],
             truths=true_theta,
             bins=75,
@@ -217,6 +231,5 @@ def sequential(
         # DEBUGGING
 
         # inefficient because re-sims old Theta
-        Theta_post = np.vstack([Theta, Theta_post])
 
-    return model_params, Theta_post
+    return model_params, Theta_New
