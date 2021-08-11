@@ -34,11 +34,11 @@ def _simulate_X(rng, simulate, theta, num_samples_per_theta: int = 1):
     return simulate(rng, theta, num_samples_per_theta=num_samples_per_theta)
 
 
-def _train_model(trainer, model_params, opt_state, train_dataloader, valid_dataloader):
+def _train_model(trainer, model_params, opt_state, train_dataloader, valid_dataloader, num_round=0):
     """
     Train model
     """
-    return trainer(model_params, opt_state, train_dataloader, valid_dataloader)
+    return trainer(model_params, opt_state, train_dataloader, valid_dataloader, num_round=num_round)
 
 
 def _sample_posterior(
@@ -103,6 +103,7 @@ def _sequential_round(
     num_chains=32,
     Theta=None,
     X=None,
+    num_round=0,
 ):
     if Theta is None:
         Theta = _sample_theta(rng, sample_prior, num_initial_samples)
@@ -111,7 +112,7 @@ def _sequential_round(
 
     train_dataloader, valid_dataloader = data_loader_builder(X=X, Theta=Theta)
     model_params = _train_model(
-        trainer, model_params, opt_state, train_dataloader, valid_dataloader
+        trainer, model_params, opt_state, train_dataloader, valid_dataloader, num_round=num_round,
     )
 
     # some mcmc stuff
@@ -149,7 +150,7 @@ def sequential(
     trainer,
     data_loader_builder,
     get_init_theta=None,
-    num_round=10,
+    num_rounds=10,
     num_initial_samples=1000,
     num_samples_per_round=100,
     num_samples_per_theta=1,
@@ -167,7 +168,7 @@ def sequential(
         )
 
     Theta_post = Theta
-    for i in range(num_round):
+    for i in range(num_rounds):
         print(f"STARTING ROUND {i+1}")
         model_params, X, Theta, Theta_post = _sequential_round(
             rng,
@@ -187,6 +188,7 @@ def sequential(
             num_chains=num_chains,
             Theta=Theta_post,
             X=None,
+            num_round=i,
         )
 
         # DEBUGGING
@@ -206,7 +208,12 @@ def sequential(
             smooth=(1.0),
             smooth1d=(1.0),
         )
-        plt.show()
+        
+        
+        if hasattr(logger, "plot"):
+            logger.plot(f"corner_round_{i+1}", plt, close_plot=True, step=(i+1))
+        else:
+            plt.show()
         # DEBUGGING
 
         # inefficient because re-sims old Theta

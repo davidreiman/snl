@@ -23,6 +23,7 @@ def getTrainer(
         opt_state,
         train_dataloader,
         valid_dataloader=None,
+        num_round=0,
     ):
 
         iterator = tqdm(range(nsteps))
@@ -42,8 +43,8 @@ def getTrainer(
                     print("We've hit nan-ville. Stopping early.")
                     break
 
-                if logger is not None:
-                    logger.scalar("train loss", nll, step=_step_num)
+                if hasattr(logger, "scalar"):
+                    logger.scalar("train loss", nll, step=(num_round*nsteps)+_step_num)
 
                 if _step_num % eval_interval == 0 and valid_step is not None:
                     assert valid_dataloader is not None, "valid_dataloader is None"
@@ -57,10 +58,10 @@ def getTrainer(
                     elif np.isnan(valid_metrics[0]) or np.isinf(valid_metrics[0]):
                         print("We've hit nan-ville. Stopping early.")
                         break
-                    if logger is not None:
+                    if hasattr(logger, "scalar"):
                         for i, valid_metric in enumerate(valid_metrics):
                             logger.scalar(
-                                f"valid metric {i}", valid_metric, step=_step_num
+                                f"valid metric {i}", valid_metric, step=(num_round*nsteps)+_step_num
                             )
                     iterator.set_description(f"Valid loss: {valid_metrics[0]:.4f}")
         except KeyboardInterrupt:

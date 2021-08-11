@@ -22,7 +22,7 @@ seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
-num_layers = 5
+num_layers = 3
 width = 64
 
 # Optimizer hyperparmeters
@@ -37,18 +37,18 @@ eval_interval = 100
 
 
 # Sequential hyperparameters
-num_round = 10
+num_rounds = 10
 num_initial_samples = 1000
 num_samples_per_round = 1000
 num_chains = 1
 
 # --------------------------
 # Create logger
-# from trax.jaxboard import SummaryWriter
-# experiment_name = datetime.datetime.now().strftime("%s")
-# experiment_name = f"{model_type}_{experiment_name}"
-# logger = SummaryWriter("runs/" + experiment_name)
-logger = None
+from trax.jaxboard import SummaryWriter
+experiment_name = datetime.datetime.now().strftime("%s")
+experiment_name = f"{model_type}_{experiment_name}"
+logger = SummaryWriter("runs/" + experiment_name)
+# logger = None
 
 
 # --------------------------
@@ -135,11 +135,12 @@ model_params, Theta_post = sequential(
     opt_state,
     trainer,
     data_loader_builder,
-    num_round=num_round,
+    num_rounds=num_rounds,
     num_initial_samples=num_initial_samples,
     num_samples_per_round=num_samples_per_round,
     num_samples_per_theta=1,
     num_chains=num_chains,
+    logger=logger,
 )
 
 
@@ -188,6 +189,10 @@ corner.corner(
     smooth=(1.0),
     smooth1d=(1.0),
 )
-plt.show()
+        
+if hasattr(logger, "plot"):
+    logger.plot(f"Final Corner Plot", plt, close_plot=True)
+else:
+    plt.show()
 
-# logger.close()
+logger.close()
