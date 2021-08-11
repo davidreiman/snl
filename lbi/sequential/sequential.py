@@ -55,7 +55,9 @@ def _sample_posterior(
         if len(theta.shape) == 1:
             theta = theta[None, :]
 
-        log_post = -log_pdf(model_params, inputs=X_true, context=theta) - log_prior(theta)
+        log_post = -log_pdf(model_params, inputs=X_true, context=theta) - log_prior(
+            theta
+        )
         return log_post.sum()
 
     mcmc = hmc(
@@ -115,7 +117,11 @@ def _sequential_round(
     # some mcmc stuff
 
     init_theta = get_init_theta(
-        model_params.slow, log_pdf, X_true, Theta, num_theta=num_chains
+        model_params.slow if hasattr(model_params, "slow") else model_params,
+        log_pdf,
+        X_true,
+        Theta,
+        num_theta=num_chains,
     )
 
     Theta_post = _sample_posterior(
@@ -162,6 +168,7 @@ def sequential(
 
     Theta_post = Theta
     for i in range(num_round):
+        print(f"STARTING ROUND {i+1}")
         model_params, X, Theta, Theta_post = _sequential_round(
             rng,
             X_true,

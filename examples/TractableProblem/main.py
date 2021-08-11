@@ -16,21 +16,31 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "flow"  # "classifier" or "flow"
+model_type = "classifier"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
-num_layers = 4
-width = 128
+num_layers = 5
+width = 64
 
 # Optimizer hyperparmeters
 max_norm = 1e-3
 learning_rate = 1e-4
-sync_period = 5
-slow_step_size = 0.5
+sync_period = 1
+slow_step_size = 1.0
 
+# Train hyperparameters
+nsteps = 10000
+eval_interval = 100
+
+
+# Sequential hyperparameters
+num_round = 10
+num_initial_samples = 1000
+num_samples_per_round = 1000
+num_chains = 1
 
 # --------------------------
 # Create logger
@@ -51,8 +61,8 @@ X_true = simulate(rng, true_theta, num_samples_per_theta=1)
 
 data_loader_builder = getDataLoaderBuilder(
     sequential_mode=model_type,
-    batch_size=512,
-    train_split=0.9,
+    batch_size=128,
+    train_split=0.95,
     num_workers=0,
     add_noise=False,
 )
@@ -67,7 +77,7 @@ log_prior, sample_prior = SmoothedBoxPrior(
 # --------------------------
 # Create model
 if model_type == "classifier":
-    initial_params, loss, log_pdf, train_step, valid_step = InitializeClassifier(
+    model_params, loss, log_pdf, train_step, valid_step = InitializeClassifier(
         model_rng=model_rng,
         obs_dim=obs_dim,
         theta_dim=theta_dim,
@@ -75,7 +85,7 @@ if model_type == "classifier":
         width=width,
     )
 else:
-    initial_params, loss, (log_pdf, sample), train_step, valid_step = InitializeFlow(
+    model_params, loss, (log_pdf, sample), train_step, valid_step = InitializeFlow(
         model_rng=model_rng,
         obs_dim=obs_dim,
         theta_dim=theta_dim,
@@ -85,16 +95,16 @@ else:
 
 
 # Create optimizer
-fast_optimizer = optax.chain(
+optimizer = optax.chain(
     # Set the parameters of Adam optimizer
-    optax.adam(learning_rate=learning_rate, b1=0.9, b2=0.999, eps=1e-8),
+    optax.adamw(learning_rate=learning_rate, b1=0.9, b2=0.999, eps=1e-8),
     optax.adaptive_grad_clip(max_norm),
 )
-optimizer = optax.lookahead(
-    fast_optimizer, sync_period=sync_period, slow_step_size=slow_step_size
-)
+# optimizer = optax.lookahead(
+#     fast_optimizer, sync_period=sync_period, slow_step_size=slow_step_size
+# )
 
-model_params = optax.LookaheadParams.init_synced(initial_params)
+# model_params = optax.LookaheadParams.init_synced(model_params)
 opt_state = optimizer.init(model_params)
 
 
@@ -106,8 +116,8 @@ trainer = getTrainer(
     optimizer,
     train_step,
     valid_step=valid_step,
-    nsteps=10000,
-    eval_interval=10,
+    nsteps=nsteps,
+    eval_interval=eval_interval,
     logger=logger,
     train_kwargs=None,
     valid_kwargs=None,
@@ -116,7 +126,7 @@ trainer = getTrainer(
 # Train model sequentially
 model_params, Theta_post = sequential(
     rng,
-    X_true, 
+    X_true,
     model_params,
     log_pdf,
     log_prior,
@@ -125,12 +135,59 @@ model_params, Theta_post = sequential(
     opt_state,
     trainer,
     data_loader_builder,
-    num_round=4,
-    num_initial_samples=4000,
-    num_samples_per_round=2000,
+    num_round=num_round,
+    num_initial_samples=num_initial_samples,
+    num_samples_per_round=num_samples_per_round,
     num_samples_per_theta=1,
-    num_chains=64,
+    num_chains=num_chains,
 )
 
+
+def potential_fn(theta):
+    if len(theta.shape) == 1:
+        theta = theta[None, :]
+    log_post = (
+        -log_pdf(
+            model_params.fast if hasattr(model_params, "fast") else model_params,
+            inputs=X_true,
+            context=theta,
+        )
+        - log_prior(theta)
+    )
+    return log_post.sum()
+
+
+num_chains = 128
+init_theta = sample_prior(rng, num_samples=num_chains)
+
+mcmc = hmc(
+    rng,
+    potential_fn,
+    init_theta,
+    adapt_step_size=True,
+    adapt_mass_matrix=True,
+    dense_mass=True,
+    step_size=1e0,
+    max_tree_depth=6,
+    num_warmup=2000,
+    num_samples=2000,
+    num_chains=num_chains,
+)
+mcmc.print_summary()
+
+samples = mcmc.get_samples(group_by_chain=False).squeeze()
+
+theta_dim = samples.shape[-1]
+true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])
+
+corner.corner(
+    onp.array(samples),
+    range=[(-3, 3) for i in range(theta_dim)],
+    truths=true_theta,
+    bins=75,
+    smooth=(1.0),
+    smooth1d=(1.0),
+)
+plt.show()
 
 # logger.close()

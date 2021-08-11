@@ -23,10 +23,12 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
 
     """
 
-    @partial(jax.jit, static_argnums=(0, ))
+    @partial(jax.jit, static_argnums=(0,))
     def train_step(optimizer, params, opt_state, batch):
         def step(params, batch, opt_state):
-            nll, grads = jax.value_and_grad(loss)(params.fast, batch)
+            nll, grads = jax.value_and_grad(loss)(
+                params.fast if hasattr(params, "fast") else params, batch
+            )
             updates, opt_state = optimizer.update(grads, opt_state, params)
 
             return nll, optax.apply_updates(params, updates), opt_state
@@ -36,7 +38,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
     @jax.jit
     def valid_step(params, batch):
         def step(params, batch):
-            nll = loss(params.fast, batch)
+            nll = loss(params.slow if hasattr(params, "slow") else params, batch)
             return (nll,)
 
         return step(params, batch)
@@ -59,7 +61,6 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
         if average:
             return np.mean(L)
         return np.sum(L)
-
 
     init_random_params, logit_d = Classifier(num_layers=num_layers, width=width)
 
