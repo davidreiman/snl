@@ -16,13 +16,13 @@ def ResidualBlock(width, act=None):
     )
 
 
-def Classifier(num_layers=5, width=128, use_residual=True, act=None):
+def Classifier(num_layers=5, width=128, dropout=0.0, use_residual=True, act=None):
     if act is None:
         act = stax.Selu
 
 
     if use_residual:
-        layers = [ResidualBlock(width) for _ in range(num_layers)]
+        layers = [ResidualBlock(width=width) for _ in range(num_layers)]
     else:
         layers = [lyr for _ in range(num_layers) for lyr in (stax.Dense(width), act)]
     # append a final linear layer for binary classification

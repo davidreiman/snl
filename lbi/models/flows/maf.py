@@ -30,7 +30,7 @@ def masked_transform(rng, input_dim, context_dim=0, hidden_dim=64, num_hidden=1)
     masks = get_masks(
         input_dim, context_dim=context_dim, hidden_dim=hidden_dim, num_hidden=num_hidden
     )
-    act = stax.Gelu
+    act = stax.Relu
     init_fun, apply_fun = stax.serial(
         flows.MaskedDense(masks[0], use_context=True),
         act,
@@ -55,6 +55,7 @@ def MaskedAffineFlow(n_layers=5):
             *(
                 flows.MADE(masked_transform),
                 flows.Reverse(),
+                flows.ActNorm(),
             )
             * n_layers
         ),
@@ -105,7 +106,6 @@ if __name__ == "__main__":
         TensorDataset(X_train_s, y_train),
         batch_size=batch_size,
         shuffle=True
-        # TensorDataset(X_train_s), batch_size=batch_size, shuffle=True
     )
 
     rng = jax.random.PRNGKey(seed)
@@ -113,7 +113,6 @@ if __name__ == "__main__":
         rng,
         input_dim=input_dim,
         context_dim=context_dim,
-        # context_dim=0,
         hidden_dim=hidden_dim,
     )
 

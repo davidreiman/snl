@@ -214,20 +214,23 @@ def sequential(
         theta_dim = Theta.shape[-1]
         true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])
 
-        corner.corner(
-            onp.array(Theta_New),
-            range=[(-3, 3) for i in range(theta_dim)],
-            truths=true_theta,
-            bins=75,
-            smooth=(1.0),
-            smooth1d=(1.0),
-        )
-        
-        
-        if hasattr(logger, "plot"):
-            logger.plot(f"corner_round_{i+1}", plt, close_plot=True, step=(i+1))
-        else:
-            plt.show()
+        try:
+            corner.corner(
+                onp.array(Theta_New),
+                range=[(-3, 3) for i in range(theta_dim)],
+                truths=true_theta,
+                bins=75,
+                smooth=(1.0),
+                smooth1d=(1.0),
+            )
+            
+            
+            if hasattr(logger, "plot"):
+                logger.plot(f"corner_round_{i+1}", plt, close_plot=True, step=(i+1))
+            else:
+                plt.show()
+        except KeyboardInterrupt:
+            pass
         # DEBUGGING
 
     return model_params, Theta_New

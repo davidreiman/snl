@@ -16,28 +16,28 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "flow"  # "classifier" or "flow"
+model_type = "classifier"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
-num_layers = 5
-width = 128
+num_layers = 2
+width = 512
 
 # Optimizer hyperparmeters
 max_norm = 1e-3
-learning_rate = 1e-4
-sync_period = 1
-slow_step_size = 1.0
+learning_rate = 3e-4
+weight_decay = 1e-1
+sync_period = 5
+slow_step_size = 0.5
 
 # Train hyperparameters
-nsteps = 10000
+nsteps = 5000
 eval_interval = 100
 
-
 # Sequential hyperparameters
-num_rounds = 10
+num_rounds = 100
 num_initial_samples = 1000
 num_samples_per_round = 1000
 num_chains = 1
@@ -45,6 +45,7 @@ num_chains = 1
 # --------------------------
 # Create logger
 from trax.jaxboard import SummaryWriter
+
 experiment_name = datetime.datetime.now().strftime("%s")
 experiment_name = f"{model_type}_{experiment_name}"
 logger = SummaryWriter("runs/" + experiment_name)
@@ -97,7 +98,13 @@ else:
 # Create optimizer
 optimizer = optax.chain(
     # Set the parameters of Adam optimizer
-    optax.adamw(learning_rate=learning_rate, b1=0.9, b2=0.999, eps=1e-8),
+    optax.adamw(
+        learning_rate=learning_rate,
+        weight_decay=weight_decay,
+        b1=0.9,
+        b2=0.999,
+        eps=1e-8,
+    ),
     optax.adaptive_grad_clip(max_norm),
 )
 # optimizer = optax.lookahead(
@@ -189,7 +196,7 @@ corner.corner(
     smooth=(1.0),
     smooth1d=(1.0),
 )
-        
+
 if hasattr(logger, "plot"):
     logger.plot(f"Final Corner Plot", plt, close_plot=True)
 else:

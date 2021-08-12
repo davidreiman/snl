@@ -5,7 +5,12 @@ from .maf import MaskedAffineFlow
 
 
 def InitializeFlow(
-    model_rng, obs_dim, theta_dim, flow_model=None, num_layers=5, hidden_dim=64
+    model_rng,
+    obs_dim,
+    theta_dim,
+    flow_model=None,
+    num_layers=5,
+    hidden_dim=64,
 ):
     """
     Initialize a flow model.
