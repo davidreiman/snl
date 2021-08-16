@@ -28,28 +28,6 @@ def InitializeFlow(
 
     """
 
-    @partial(jax.jit, static_argnums=(0,))
-    def train_step(optimizer, params, opt_state, batch):
-        def step(params, batch, opt_state):
-            # batch = jax.numpy.hstack(batch)
-            nll, grads = jax.value_and_grad(loss)(
-                params.fast if hasattr(params, "fast") else params, *batch
-            )
-            updates, opt_state = optimizer.update(grads, opt_state, params)
-
-            return nll, optax.apply_updates(params, updates), opt_state
-
-        return step(params, batch, opt_state)
-
-    @jax.jit
-    def valid_step(params, batch):
-        def step(params, batch):
-            # batch = jax.numpy.hstack(batch)
-            nll = loss(params.fast if hasattr(params, "fast") else params, *batch)
-            return (nll,)
-
-        return step(params, batch)
-
     def loss(params, inputs, context=None):
         return -log_pdf(params, inputs, context).mean()
 
@@ -65,4 +43,4 @@ def InitializeFlow(
         context_dim=theta_dim,
         hidden_dim=hidden_dim,
     )
-    return initial_params, loss, (log_pdf, sample), train_step, valid_step
+    return initial_params, loss, (log_pdf, sample)

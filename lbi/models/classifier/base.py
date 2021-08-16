@@ -23,34 +23,13 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
 
     """
 
-    @partial(jax.jit, static_argnums=(0,))
-    def train_step(optimizer, params, opt_state, batch):
-        def step(params, batch, opt_state):
-            nll, grads = jax.value_and_grad(loss)(
-                params.fast if hasattr(params, "fast") else params, batch
-            )
-            updates, opt_state = optimizer.update(grads, opt_state, params)
-
-            return nll, optax.apply_updates(params, updates), opt_state
-
-        return step(params, batch, opt_state)
-
-    @jax.jit
-    def valid_step(params, batch):
-        def step(params, batch):
-            nll = loss(params.slow if hasattr(params, "slow") else params, batch)
-            return (nll,)
-
-        return step(params, batch)
-
-    def loss(params, batch, average=True):
+    def loss(params, inputs, context, label):
         """binary cross entropy with logits
         taken from jaxchem
         """
-        obs, theta, label = batch
         label = label.squeeze()
         # log ratio is the logit of the discriminator
-        l_d = logit_d(params, obs, theta).squeeze()
+        l_d = logit_d(params, inputs, context).squeeze()
         max_val = np.clip(-l_d, 0, None)
         L = (
             l_d
@@ -58,9 +37,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
             + max_val
             + np.log(np.exp(-max_val) + np.exp((-l_d - max_val)))
         )
-        if average:
-            return np.mean(L)
-        return np.sum(L)
+        return np.mean(L)
 
     init_random_params, logit_d = Classifier(num_layers=num_layers, width=width)
 
@@ -69,4 +46,4 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128)
 
     _, initial_params = init_random_params(model_rng, (-1, obs_dim + theta_dim))
 
-    return initial_params, loss, logit_d, train_step, valid_step
+    return initial_params, loss, logit_d

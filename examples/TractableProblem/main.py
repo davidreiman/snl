@@ -5,6 +5,7 @@ import optax
 from lbi.prior import SmoothedBoxPrior
 from lbi.dataset import getDataLoaderBuilder
 from lbi.sequential.sequential import sequential
+from lbi.models.base import get_train_step, get_valid_step
 from lbi.models.flows import InitializeFlow
 from lbi.models.classifier import InitializeClassifier
 from lbi.trainer import getTrainer
@@ -37,7 +38,7 @@ nsteps = 5000
 eval_interval = 100
 
 # Sequential hyperparameters
-num_rounds = 100
+num_rounds = 3
 num_initial_samples = 1000
 num_samples_per_round = 1000
 num_chains = 1
@@ -78,7 +79,7 @@ log_prior, sample_prior = SmoothedBoxPrior(
 # --------------------------
 # Create model
 if model_type == "classifier":
-    model_params, loss, log_pdf, train_step, valid_step = InitializeClassifier(
+    model_params, loss, log_pdf = InitializeClassifier(
         model_rng=model_rng,
         obs_dim=obs_dim,
         theta_dim=theta_dim,
@@ -86,7 +87,7 @@ if model_type == "classifier":
         width=width,
     )
 else:
-    model_params, loss, (log_pdf, sample), train_step, valid_step = InitializeFlow(
+    model_params, loss, (log_pdf, sample) = InitializeFlow(
         model_rng=model_rng,
         obs_dim=obs_dim,
         theta_dim=theta_dim,
@@ -94,7 +95,7 @@ else:
         hidden_dim=width,
     )
 
-
+# --------------------------
 # Create optimizer
 optimizer = optax.chain(
     # Set the parameters of Adam optimizer
@@ -118,8 +119,10 @@ opt_state = optimizer.init(model_params)
 # --------------------------
 # Create trainer
 
+train_step = get_train_step(loss, optimizer)
+valid_step = get_valid_step({"valid_loss": loss, "also_valid_loss": loss})
+
 trainer = getTrainer(
-    loss,
     optimizer,
     train_step,
     valid_step=valid_step,

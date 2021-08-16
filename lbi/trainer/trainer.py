@@ -3,7 +3,6 @@ from tqdm.auto import tqdm
 
 
 def getTrainer(
-    loss,
     optimizer,
     train_step,
     nsteps=10000,
@@ -34,7 +33,6 @@ def getTrainer(
             for _step_num in iterator:
                 batch = [np.array(a) for a in next(iter(train_dataloader))]
                 nll, params, opt_state = train_step(
-                    optimizer,
                     params,
                     opt_state,
                     batch,
@@ -52,18 +50,18 @@ def getTrainer(
 
                     # assumes first valid metric is the validation loss
                     valid_metrics = valid_step(params, batch)
-                    if valid_metrics[0] < best_valid_loss:
-                        best_valid_loss = valid_metrics[0]
+                    if valid_metrics['valid_loss'] < best_valid_loss:
+                        best_valid_loss = valid_metrics['valid_loss']
                         best_params = params
-                    elif np.isnan(valid_metrics[0]) or np.isinf(valid_metrics[0]):
+                    elif np.isnan(valid_metrics['valid_loss']) or np.isinf(valid_metrics['valid_loss']):
                         print("We've hit nan-ville. Stopping early.")
                         break
                     if hasattr(logger, "scalar"):
-                        for i, valid_metric in enumerate(valid_metrics):
+                        for key, val in valid_metrics.items():
                             logger.scalar(
-                                f"valid metric {i}", valid_metric, step=(num_round*nsteps)+_step_num
+                                f"{key}", val, step=(num_round*nsteps)+_step_num
                             )
-                    iterator.set_description(f"Valid loss: {valid_metrics[0]:.4f}")
+                    iterator.set_description(f"Valid loss: {valid_metrics['valid_loss']:.4f}")
         except KeyboardInterrupt:
             print("Keyboard interrupted. Stopping early")
             pass
