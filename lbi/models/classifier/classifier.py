@@ -30,8 +30,8 @@ def Classifier(num_layers=5, width=128, dropout=0.0, use_residual=True, act=None
 
     init_random_params, _logit_d = stax.serial(*layers)
     
-    def logit_d(params, inputs, context):
-        return _logit_d(params, np.hstack([inputs, context]))
+    def logit_d(params, *args):
+        return _logit_d(params, np.hstack([args]))
     
     return init_random_params, logit_d
 
