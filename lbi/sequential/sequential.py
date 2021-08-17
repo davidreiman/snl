@@ -55,7 +55,7 @@ def _sample_posterior(
         if len(theta.shape) == 1:
             theta = theta[None, :]
 
-        log_post = -log_pdf(model_params, inputs=X_true, context=theta) - log_prior(
+        log_post = -log_pdf(model_params, X_true, theta) - log_prior(
             theta
         )
         return log_post.sum()
@@ -226,7 +226,7 @@ def sequential(
             
             
             if hasattr(logger, "plot"):
-                logger.plot(f"corner_round_{i+1}", plt, close_plot=True, step=(i+1))
+                logger.plot(f"diagnostic_corner", plt, close_plot=True, step=(i+1))
             else:
                 plt.show()
         except KeyboardInterrupt:

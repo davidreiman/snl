@@ -1,92 +1,252 @@
+import jax
+import jax.numpy as np
+import numpy as onp
+import optax
+import sklearn.metrics as skm
 import torch
-import random
+from lbi.models.base import get_train_step, get_valid_step
+from lbi.models.classifier import InitializeClassifier
+from lbi.trainer import getTrainer
+from sklearn.model_selection import train_test_split
 
 
+def data_loader_builder(a_samples, b_samples, train_split=0.9):
+
+    train_a, valid_a, train_b, valid_b = train_test_split(
+        a_samples, b_samples, train_size=train_split
+    )
+
+    train_data = np.vstack([train_a, train_b])
+    train_labels = np.vstack(
+        [np.zeros((train_a.shape[0], 1)), np.ones((train_b.shape[0], 1))]
+    )
+
+    valid_data = np.vstack([valid_a, valid_b])
+    valid_labels = np.vstack(
+        [np.zeros((valid_a.shape[0], 1)), np.ones((valid_b.shape[0], 1))]
+    )
+
+    train_data = torch.tensor(onp.array(train_data), dtype=torch.float32)
+    train_labels = torch.tensor(onp.array(train_labels), dtype=torch.float32)
+    valid_data = torch.tensor(onp.array(valid_data), dtype=torch.float32)
+    valid_labels = torch.tensor(onp.array(valid_labels), dtype=torch.float32)
+
+    DSet = torch.utils.data.TensorDataset
+
+    trainDataset = DSet(train_data, train_labels)
+    validDataset = DSet(valid_data, valid_labels)
+
+    train_dataloader = torch.utils.data.DataLoader(
+        trainDataset,
+        batch_size=128,
+        shuffle=True,
+    )
+    valid_dataloader = torch.utils.data.DataLoader(
+        validDataset,
+        batch_size=128 * 16,
+        shuffle=True,
+    )
+
+    return train_dataloader, valid_dataloader
 
 
-class ROC:
-    def __init__(self, data, context, widths=[512, 512], num_classifiers=4,
-                 max_steps=int(1e5), batch_size=64, validation_split=0.15, num_workers=1):
-        self.max_steps = max_steps
-        self.batch_size = batch_size
-        self.validation_split = validation_split
-        self.num_workers = num_workers
+def train_classifier(
+    rng_key,
+    a_samples,
+    b_samples,
+    train_split=0.9,
+    learning_rate=1e-4,
+    train_nsteps=10000,
+    eval_interval=10,
+    patience=5000,
+    num_layers=3,
+    width=128,
+):
+    def loss(params, inputs, label):
+        """binary cross entropy with logits
+        taken from jaxchem
 
-        self.classifiers = [self.make_classifier(self, widths) for _ in range(num_classifiers)]
-        self.optimizers = [torch.optim.AdamW(classifier.parameters()) for classifier in self.classifiers]
+        default loss takes context, so we specify this one to circumvent that
+        """
+        label = label.squeeze()
+        # log ratio is the logit of the discriminator
+        l_d = logit_d(params, inputs).squeeze()
+        max_val = np.clip(-l_d, 0, None)
+        L = (
+            l_d
+            - l_d * label
+            + max_val
+            + np.log(np.exp(-max_val) + np.exp((-l_d - max_val)))
+        )
+        return np.mean(L)
 
-        training_loader, validation_loader = self.prep_data(data, context)
-        self.training_loader = training_loader
-        self.validation_loader = validation_loader
+    # --------------------------
+    # Create model
+    model_params, _, logit_d = InitializeClassifier(
+        model_rng=rng_key,
+        obs_dim=a_samples.shape[-1],
+        theta_dim=0,
+        num_layers=num_layers,
+        width=width,
+    )
 
-    def prep_data(self, data, context):
-        mask_split = torch.rand(data.shape[0]) > self.validation_split
-        training_data = self.data[mask_split]
-        training_context = self.context[mask_split]
-        validation_data = self.data[~mask_split]
-        validation_context = self.context[~mask_split]
+    # --------------------------
+    # Create optimizer
+    optimizer = optax.chain(
+        # Set the parameters of Adam optimizer
+        optax.adamw(
+            learning_rate=learning_rate,
+            weight_decay=1e-2,
+            b1=0.9,
+            b2=0.999,
+            eps=1e-8,
+        ),
+    )
+    opt_state = optimizer.init(model_params)
 
-        mu_data = torch.mean(training_data)
-        mu_context = torch.mean(training_context)
-        sigma_data = torch.std(training_data)
-        sigma_context = torch.std(training_context)
+    # --------------------------
+    # Create trainer
 
-        training_data = (training_data - mu_data)/sigma_data
-        training_context = (training_context - mu_context)/sigma_context
-        validation_data = (validation_data - mu_data)/sigma_data
-        validation_context = (validation_context - mu_context)/sigma_context
+    train_step = get_train_step(loss, optimizer)
+    valid_step = get_valid_step({"valid_loss": loss, "also_valid_loss": loss})
 
+    trainer = getTrainer(
+        train_step,
+        valid_step=valid_step,
+        nsteps=train_nsteps,
+        eval_interval=eval_interval,
+        patience=patience,
+        logger=None,
+        train_kwargs=None,
+        valid_kwargs=None,
+    )
 
-        train_dset = torch.utils.data.TensorDataset( training_data.float(), training_context.float())
-        training_loader = torch.utils.data.DataLoader(
-            train_dset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            drop_last=True,
-            num_workers=self.num_workers)
-        valid_dset = torch.utils.data.TensorDataset(validation_data.float(), validation_context.float())
-        validation_loader = torch.utils.data.DataLoader(
-            valid_dset,
-            batch_size=10*self.batch_size,
-            shuffle=True,
-            drop_last=True,
-            num_workers=self.num_workers)
-        pass
+    train_dataloader, valid_dataloader = data_loader_builder(
+        a_samples, b_samples, train_split=train_split
+    )
 
-    def get_batch(self, shuffle=True):
-        data_A, context_A = next(self.training_loader)
-        data_B, context_B = next(self.training_loader)
+    model_params = trainer(
+        model_params,
+        opt_state,
+        train_dataloader,
+        valid_dataloader=valid_dataloader,
+    )
 
-        ones = torch.ones(data_A.shape[0])
-        zeros = torch.zeros(data_A.shape[0])
-
-        A = torch.cat([data_A, context_A], dim=1)
-        B = torch.cat([data_B, context_B], dim=1)
-        C = torch.cat([data_A, context_B], dim=1)
-        D = torch.cat([data_B, context_A], dim=1)
-
-        batch = torch.cat([A, B, C, D], dim=0)
-        labels = torch.cat([ones, ones, zeros, zeros], dim=0)
-
-        return batch, labels
-
-
-    def train(self, model, optimizer):
-        for i in range(self.max_steps):
-            optimizer.zero_grad()
-            batch, labels = self.get_batch()
-            preds = model.forward(batch)
-            l = self.loss(preds, labels)
-            l.backward()
-            optimizer.step()
-
-
-
-        pass
-
-    def make_classifier(self, widths):
+    return model_params, logit_d
 
 
-    def run(self):
-        for classifier in self.classifiers:
-            self.train(classifier)
+def distinguish_samples(a_samples, b_samples, classifier_params, logit_d):
+    a_labels = np.zeros((a_samples.shape[0], 1))
+    b_labels = np.ones((b_samples.shape[0], 1))
+    samples = np.vstack([a_samples, b_samples])
+    true_labels = np.vstack([a_labels, b_labels])
+
+    pred_labels = logit_d(classifier_params, samples)
+    pred_labels = jax.nn.sigmoid(pred_labels)
+    return true_labels, pred_labels
+
+
+def ROC_AUC(
+    rng_key,
+    a_samples,
+    b_samples,
+    train_split=0.9,
+    learning_rate=1e-4,
+    train_nsteps=10000,
+    eval_interval=10,
+    patience=5000,
+    num_layers=3,
+    width=128,
+):
+    classifier_params, logit_d = train_classifier(
+        rng_key,
+        a_samples,
+        b_samples,
+        train_split=train_split,
+        learning_rate=learning_rate,
+        train_nsteps=train_nsteps,
+        eval_interval=eval_interval,
+        patience=patience,
+        num_layers=num_layers,
+        width=width,
+    )
+
+    true_labels, pred_labels = distinguish_samples(
+        a_samples, b_samples, classifier_params, logit_d
+    )
+
+    fpr, tpr, _ = skm.roc_curve(true_labels, pred_labels)
+    roc_auc = skm.auc(fpr, tpr)
+
+    return fpr, tpr, roc_auc
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    def ROC_of_true_discriminator(rng_key, a_samples, b_samples):
+        """
+        The optimal discriminator is the ratio of d(x) = prob_a(x)/(prob_a(x) + prob_b(x))
+        """
+        dist_a = lambda x: jax.scipy.stats.multivariate_normal.pdf(
+            x, mean=mean, cov=cov
+        )
+        dist_b = lambda x: jax.scipy.stats.multivariate_normal.pdf(
+            x, mean=mean + offset, cov=cov
+        )
+
+        def opt_d(x):
+            return dist_b(x) / (dist_a(x) + dist_b(x))
+
+        a_labels = np.zeros((a_samples.shape[0], 1))
+        b_labels = np.ones((b_samples.shape[0], 1))
+        samples = np.vstack([a_samples, b_samples])
+        true_labels = np.vstack([a_labels, b_labels])
+
+        pred_labels = opt_d(samples)
+
+        fpr, tpr, _ = skm.roc_curve(true_labels, pred_labels)
+        roc_auc = skm.auc(fpr, tpr)
+
+        return fpr, tpr, roc_auc
+
+    seed = 1234
+    rng_key = jax.random.PRNGKey(seed)
+
+    num_data = 1000
+    data_dim = 5
+
+    for offset in np.linspace(0, 3, 10):
+
+        mean = np.zeros(data_dim)
+        cov = np.eye(data_dim)
+        a_samples = jax.random.multivariate_normal(
+            rng_key, mean=mean, cov=cov, shape=(num_data,)
+        )
+        b_samples = jax.random.multivariate_normal(
+            rng_key, mean=mean + offset, cov=cov, shape=(num_data,)
+        )
+
+        # Trained discriminator
+        fpr, tpr, roc_auc = ROC_AUC(rng_key, a_samples, b_samples, train_nsteps=1000)
+        opt_fpr, opt_tpr, opt_roc_auc = ROC_of_true_discriminator(rng_key, a_samples, b_samples)
+        
+        plt.scatter(offset, roc_auc, color="blue")
+        plt.scatter(offset, opt_roc_auc, color="orange")
+    
+    plt.yscale('log')
+    plt.show()
+    
+    plt.plot(fpr, tpr, label="ROC curve (area = %0.2f)" % roc_auc)
+    plt.plot(
+        np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
+    )
+
+    # Optimal discriminator
+    plt.plot(opt_fpr, opt_tpr, label="ROC curve (area = %0.2f)" % opt_roc_auc)
+    plt.plot(
+        np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
+    )
+
+    plt.legend(loc="lower right")
+    plt.show()

@@ -34,12 +34,13 @@ sync_period = 5
 slow_step_size = 0.5
 
 # Train hyperparameters
-nsteps = 5000
+nsteps = 25000
+patience = 50
 eval_interval = 100
 
 # Sequential hyperparameters
-num_rounds = 3
-num_initial_samples = 1000
+num_rounds = 10
+num_initial_samples = 10000
 num_samples_per_round = 1000
 num_chains = 1
 
@@ -75,6 +76,7 @@ log_prior, sample_prior = SmoothedBoxPrior(
     theta_dim=theta_dim, lower=-3.0, upper=3.0, sigma=0.02
 )
 
+# TODO: Package model, optimizer, trainer initialization into a function
 
 # --------------------------
 # Create model
@@ -127,7 +129,7 @@ trainer = getTrainer(
     valid_step=valid_step,
     nsteps=nsteps,
     eval_interval=eval_interval,
-    patience=1,
+    patience=patience,
     logger=logger,
     train_kwargs=None,
     valid_kwargs=None,
@@ -160,8 +162,8 @@ def potential_fn(theta):
     log_post = (
         -log_pdf(
             model_params.fast if hasattr(model_params, "fast") else model_params,
-            inputs=X_true,
-            context=theta,
+            X_true,
+            theta,
         )
         - log_prior(theta)
     )

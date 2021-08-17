@@ -1,6 +1,6 @@
-import torch
 import jax
 import jax.numpy as np
+import torch
 
 
 class BaseDataset(torch.utils.data.Dataset):

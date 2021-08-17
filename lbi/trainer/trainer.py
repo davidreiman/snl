@@ -33,7 +33,8 @@ def getTrainer(
         round_patience = patience
         try:
             for _step_num in iterator:
-                batch = [np.array(a) for a in next(iter(train_dataloader))]
+                batch = next(iter(train_dataloader))
+                batch = [np.array(a) for a in batch]
                 nll, params, opt_state = train_step(
                     params,
                     opt_state,
