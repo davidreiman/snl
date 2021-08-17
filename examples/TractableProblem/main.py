@@ -123,11 +123,11 @@ train_step = get_train_step(loss, optimizer)
 valid_step = get_valid_step({"valid_loss": loss, "also_valid_loss": loss})
 
 trainer = getTrainer(
-    optimizer,
     train_step,
     valid_step=valid_step,
     nsteps=nsteps,
     eval_interval=eval_interval,
+    patience=1,
     logger=logger,
     train_kwargs=None,
     valid_kwargs=None,

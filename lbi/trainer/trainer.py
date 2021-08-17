@@ -3,12 +3,12 @@ from tqdm.auto import tqdm
 
 
 def getTrainer(
-    optimizer,
     train_step,
     nsteps=10000,
     eval_interval=100,
     valid_step=None,
     logger=None,
+    patience=None,
     train_kwargs=None,
     valid_kwargs=None,
 ):
@@ -16,7 +16,9 @@ def getTrainer(
         train_kwargs = {}
     if valid_kwargs is None:
         valid_kwargs = {}
-
+    if patience is None:
+        patience = np.inf
+        
     def trainer(
         params,
         opt_state,
@@ -28,7 +30,7 @@ def getTrainer(
         iterator = tqdm(range(nsteps))
         best_valid_loss = np.inf
         best_params = params  # purposefully not a copy
-
+        round_patience = patience
         try:
             for _step_num in iterator:
                 batch = [np.array(a) for a in next(iter(train_dataloader))]
@@ -56,12 +58,16 @@ def getTrainer(
                     elif np.isnan(valid_metrics['valid_loss']) or np.isinf(valid_metrics['valid_loss']):
                         print("We've hit nan-ville. Stopping early.")
                         break
+                    else:
+                        round_patience -= 1
                     if hasattr(logger, "scalar"):
                         for key, val in valid_metrics.items():
                             logger.scalar(
                                 f"{key}", val, step=(num_round*nsteps)+_step_num
                             )
                     iterator.set_description(f"Valid loss: {valid_metrics['valid_loss']:.4f}")
+                if round_patience <= 0:
+                    break
         except KeyboardInterrupt:
             print("Keyboard interrupted. Stopping early")
             pass
