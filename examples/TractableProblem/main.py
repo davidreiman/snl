@@ -4,6 +4,7 @@ import numpy as onp
 import optax
 from lbi.prior import SmoothedBoxPrior
 from lbi.dataset import getDataLoaderBuilder
+from lbi.diagnostics import MMD, AUC
 from lbi.sequential.sequential import sequential
 from lbi.models.base import get_train_step, get_valid_step
 from lbi.models.flows import InitializeFlow
@@ -122,7 +123,7 @@ opt_state = optimizer.init(model_params)
 # Create trainer
 
 train_step = get_train_step(loss, optimizer)
-valid_step = get_valid_step({"valid_loss": loss, "also_valid_loss": loss})
+valid_step = get_valid_step({"valid_loss": loss})
 
 trainer = getTrainer(
     train_step,

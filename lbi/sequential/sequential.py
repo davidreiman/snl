@@ -210,6 +210,8 @@ def sequential(
         import corner
         import matplotlib.pyplot as plt
         import numpy as onp
+        from lbi.diagnostics import AUC, MMD
+
 
         theta_dim = Theta.shape[-1]
         true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])

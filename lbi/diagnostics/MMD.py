@@ -13,7 +13,7 @@ def compute_kernel(x, y):
     return np.exp(-np.mean((tiled_x - tiled_y) ** 2, axis=2) / dim * 1.0)
 
 
-def compute_mmd(x, y):
+def MMD(x, y):
     x_kernel = compute_kernel(x, x)
     y_kernel = compute_kernel(y, y)
     xy_kernel = compute_kernel(x, y)
@@ -40,4 +40,4 @@ if __name__ == "__main__":
             rng_key, mean=mean + offset, cov=cov, shape=(num_data,)
         )
 
-        print(f"Offset: {offset:.1f}", compute_mmd(a_samples, b_samples))
+        print(f"Offset: {offset:.1f}", MMD(a_samples, b_samples))

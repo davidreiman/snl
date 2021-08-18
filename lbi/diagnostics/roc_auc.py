@@ -181,6 +181,37 @@ def ROC_AUC(
     return fpr, tpr, roc_auc
 
 
+def AUC(
+    rng_key,
+    a_samples,
+    b_samples,
+    train_split=0.9,
+    learning_rate=1e-4,
+    train_nsteps=10000,
+    eval_interval=10,
+    patience=5000,
+    num_layers=3,
+    width=128,
+):
+    """
+    Just a simple wrapper to get the AUC from ROC_AUC
+    """
+    _, _, roc_auc = ROC_AUC(
+        rng_key,
+        a_samples,
+        b_samples,
+        train_split=train_split,
+        learning_rate=learning_rate,
+        train_nsteps=train_nsteps,
+        eval_interval=eval_interval,
+        patience=patience,
+        num_layers=num_layers,
+        width=width,
+    )
+
+    return roc_auc
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
@@ -229,14 +260,16 @@ if __name__ == "__main__":
 
         # Trained discriminator
         fpr, tpr, roc_auc = ROC_AUC(rng_key, a_samples, b_samples, train_nsteps=1000)
-        opt_fpr, opt_tpr, opt_roc_auc = ROC_of_true_discriminator(rng_key, a_samples, b_samples)
-        
+        opt_fpr, opt_tpr, opt_roc_auc = ROC_of_true_discriminator(
+            rng_key, a_samples, b_samples
+        )
+
         plt.scatter(offset, roc_auc, color="blue")
         plt.scatter(offset, opt_roc_auc, color="orange")
-    
-    plt.yscale('log')
+
+    plt.yscale("log")
     plt.show()
-    
+
     plt.plot(fpr, tpr, label="ROC curve (area = %0.2f)" % roc_auc)
     plt.plot(
         np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
