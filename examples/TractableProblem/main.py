@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "classifier"  # "classifier" or "flow"
+model_type = "flow"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
