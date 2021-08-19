@@ -225,7 +225,6 @@ else:
         rng,
         data,
         model_samples,
-        data_split=0.05,
 )
 
 # Optimal discriminator
