@@ -4,7 +4,7 @@ import numpy as onp
 import optax
 from lbi.prior import SmoothedBoxPrior
 from lbi.dataset import getDataLoaderBuilder
-from lbi.diagnostics import MMD, AUC
+from lbi.diagnostics import MMD, ROC_AUC, LR_ROC_AUC
 from lbi.sequential.sequential import sequential
 from lbi.models.base import get_train_step, get_valid_step
 from lbi.models.flows import InitializeFlow
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "flow"  # "classifier" or "flow"
+model_type = "classifier"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
@@ -35,12 +35,12 @@ sync_period = 5
 slow_step_size = 0.5
 
 # Train hyperparameters
-nsteps = 25000
-patience = 50
+nsteps = 250000
+patience = 500
 eval_interval = 100
 
 # Sequential hyperparameters
-num_rounds = 10
+num_rounds = 1
 num_initial_samples = 10000
 num_samples_per_round = 1000
 num_chains = 1
@@ -189,13 +189,13 @@ mcmc = hmc(
 )
 mcmc.print_summary()
 
-samples = mcmc.get_samples(group_by_chain=False).squeeze()
+theta_samples = mcmc.get_samples(group_by_chain=False).squeeze()
 
-theta_dim = samples.shape[-1]
+theta_dim = theta_samples.shape[-1]
 true_theta = onp.array([0.7, -2.9, -1.0, -0.9, 0.6])
 
 corner.corner(
-    onp.array(samples),
+    onp.array(theta_samples),
     range=[(-3, 3) for i in range(theta_dim)],
     truths=true_theta,
     bins=75,
@@ -205,6 +205,38 @@ corner.corner(
 
 if hasattr(logger, "plot"):
     logger.plot(f"Final Corner Plot", plt, close_plot=True)
+else:
+    plt.show()
+
+data = simulate(rng, theta_samples, num_samples_per_theta=1)
+
+if model_type == "classifier":
+    fpr, tpr, auc = LR_ROC_AUC(
+        rng,
+        model_params,
+        log_pdf,
+        data,
+        theta_samples,
+        data_split=0.05,
+    )
+else:
+    model_samples = sample(rng, model_params, theta_samples)
+    fpr, tpr, auc = ROC_AUC(
+        rng,
+        data,
+        model_samples,
+        data_split=0.05,
+)
+
+# Optimal discriminator
+plt.plot(fpr, tpr, label="ROC curve (area = %0.2f)" % auc)
+plt.plot(
+    np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
+)
+plt.legend(loc="lower right")
+
+if hasattr(logger, "plot"):
+    logger.plot(f"ROC", plt, close_plot=True)
 else:
     plt.show()
 
