@@ -11,6 +11,7 @@ def InitializeFlow(
     flow_model=None,
     num_layers=5,
     hidden_dim=64,
+    **kwargs,
 ):
     """
     Initialize a flow model.
