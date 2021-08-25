@@ -25,7 +25,7 @@ rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
 num_layers = 5
-width = 512
+hidden_dim = 512
 
 # Optimizer hyperparmeters
 max_norm = 1e-3
@@ -87,7 +87,7 @@ if model_type == "classifier":
         obs_dim=obs_dim,
         theta_dim=theta_dim,
         num_layers=num_layers,
-        hidden_dim=width,
+        hidden_dim=hidden_dim,
     )
 else:
     model_params, loss, (log_pdf, sample) = InitializeFlow(
@@ -95,7 +95,7 @@ else:
         obs_dim=obs_dim,
         theta_dim=theta_dim,
         num_layers=num_layers,
-        hidden_dim=width,
+        hidden_dim=hidden_dim,
     )
 
 # --------------------------

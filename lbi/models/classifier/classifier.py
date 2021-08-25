@@ -3,28 +3,28 @@ import jax.numpy as np
 from jax.experimental import stax
 
 
-def ResidualBlock(width, act=None):
+def ResidualBlock(hidden_dim, act=None):
     """
     Outputs two features: the embedding and the unchanged inputs.
     """
     if act is None:
         act = stax.Selu
-    fully_connected = stax.serial(stax.Dense(width), act)
+    fully_connected = stax.serial(stax.Dense(hidden_dim), act)
     shortcut = stax.Identity
     return stax.serial(
         stax.FanOut(2), stax.parallel(fully_connected, shortcut), stax.FanInConcat()
     )
 
 
-def Classifier(num_layers=5, width=128, dropout=0.0, use_residual=True, act=None):
+def Classifier(num_layers=5, hidden_dim=128, dropout=0.0, use_residual=True, act=None):
     if act is None:
         act = stax.Selu
 
 
     if use_residual:
-        layers = [ResidualBlock(width=width) for _ in range(num_layers)]
+        layers = [ResidualBlock(hidden_dim=hidden_dim) for _ in range(num_layers)]
     else:
-        layers = [lyr for _ in range(num_layers) for lyr in (stax.Dense(width), act)]
+        layers = [lyr for _ in range(num_layers) for lyr in (stax.Dense(hidden_dim), act)]
     # append a final linear layer for binary classification
     layers += [stax.Dense(1)]
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         TensorDataset(X_train_s, y_train), batch_size=batch_size, shuffle=True
     )
 
-    init_random_params, logit_d = Classifier(num_layers=3, width=128)
+    init_random_params, logit_d = Classifier(num_layers=3, hidden_dim=128)
     _, params = init_random_params(jax.random.PRNGKey(seed), (-1, X_train_s.shape[-1]))
 
     learning_rate = 0.01
