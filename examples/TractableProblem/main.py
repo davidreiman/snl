@@ -18,13 +18,13 @@ import matplotlib.pyplot as plt
 import datetime
 
 # --------------------------
-model_type = "classifier"  # "classifier" or "flow"
+model_type = "flow"  # "classifier" or "flow"
 
 seed = 1234
 rng, model_rng, hmc_rng = jax.random.split(jax.random.PRNGKey(seed), num=3)
 
 # Model hyperparameters
-num_layers = 2
+num_layers = 5
 width = 512
 
 # Optimizer hyperparmeters
@@ -41,7 +41,7 @@ eval_interval = 100
 
 # Sequential hyperparameters
 num_rounds = 1
-num_initial_samples = 10000
+num_initial_samples = 100000
 num_samples_per_round = 1000
 num_chains = 1
 
@@ -87,7 +87,7 @@ if model_type == "classifier":
         obs_dim=obs_dim,
         theta_dim=theta_dim,
         num_layers=num_layers,
-        width=width,
+        hidden_dim=width,
     )
 else:
     model_params, loss, (log_pdf, sample) = InitializeFlow(

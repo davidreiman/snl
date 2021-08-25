@@ -6,7 +6,7 @@ from functools import partial
 from .classifier import Classifier
 
 
-def InitializeClassifier(model_rng, obs_dim, theta_dim, num_layers=5, width=128):
+def InitializeClassifier(model_rng, obs_dim, theta_dim, hidden_dim=128, num_layers=5):
     """
     Initialize a likelihood ratio model.
 

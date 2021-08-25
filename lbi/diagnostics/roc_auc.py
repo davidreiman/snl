@@ -303,7 +303,7 @@ if __name__ == "__main__":
     num_data = 1000
     data_dim = 5
 
-    for offset in np.linspace(0, 3, 10):
+    for offset in np.linspace(0, 0.5, 3):
 
         mean = np.zeros(data_dim)
         cov = np.eye(data_dim)
@@ -320,19 +320,27 @@ if __name__ == "__main__":
             rng_key, a_samples, b_samples
         )
 
-        plt.scatter(offset, roc_auc, color="blue")
-        plt.scatter(offset, opt_roc_auc, color="orange")
-
+        if offset == 0:
+            label_classifier = 'classifier'
+            label_optimal = 'optimal'
+        else:
+            label_classifier = None
+            label_optimal = None
+            
+        plt.scatter(offset, roc_auc, color="blue", label=label_classifier)
+        plt.scatter(offset, opt_roc_auc, color="orange", label=label_optimal)
+        
+    plt.legend()
     plt.yscale("log")
     plt.show()
 
-    plt.plot(fpr, tpr, label="ROC curve (area = %0.2f)" % roc_auc)
+    plt.plot(fpr, tpr, label="Classifier (area = %0.2f)" % roc_auc)
     plt.plot(
         np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
     )
 
     # Optimal discriminator
-    plt.plot(opt_fpr, opt_tpr, label="ROC curve (area = %0.2f)" % opt_roc_auc)
+    plt.plot(opt_fpr, opt_tpr, label="Optimal (area = %0.2f)" % opt_roc_auc)
     plt.plot(
         np.linspace(0, 1, 10), np.linspace(0, 1, 10), linestyle="--", color="black"
     )
