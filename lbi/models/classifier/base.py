@@ -39,7 +39,7 @@ def InitializeClassifier(model_rng, obs_dim, theta_dim, hidden_dim=128, num_laye
         )
         return np.mean(L)
 
-    init_random_params, logit_d = Classifier(num_layers=num_layers, width=width)
+    init_random_params, logit_d = Classifier(num_layers=num_layers, hidden_dim=hidden_dim)
 
     if type(model_rng) is int:
         model_rng = jax.random.PRNGKey(model_rng)
