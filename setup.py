@@ -22,13 +22,17 @@ if os.path.exists("README.md"):
         setup_keywords["long_description"] = readme.read()
 setup_keywords["provides"] = [setup_keywords["name"]]
 setup_keywords["requires"] = ["Python (>3.7.0)"]
-setup_keywords["install_requires"] = [
+setup_keywords["setup_requires"] = [
     "jax",
+    "jaxlib",
+    "numpy",
+]
+setup_keywords["install_requires"] = [
     "trax",
     "optax",
     "torch",
     "nflows",
-    "pyro-ppl",
+    "numpyro",
     "corner",
     "scikit-learn",
     "tqdm",
